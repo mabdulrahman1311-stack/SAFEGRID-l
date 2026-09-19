@@ -105,7 +105,7 @@ async function fetchOSRMRoute(
 }
 
 // ── Nominatim geocoder ────────────────────────────────────────────────────────
-async function geocodeAddress(query: string): Promise<{ lat: number; lng: number; displayName: string } | null> {
+export async function geocodeAddress(query: string): Promise<{ lat: number; lng: number; displayName: string } | null> {
   try {
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
     const res = await fetch(url, {
@@ -126,7 +126,7 @@ async function geocodeAddress(query: string): Promise<{ lat: number; lng: number
 }
 
 // ── Reverse geocoder (coords → address) ──────────────────────────────────────
-async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`;
     const res = await fetch(url, {

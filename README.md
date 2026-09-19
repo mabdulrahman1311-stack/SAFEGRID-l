@@ -79,14 +79,17 @@ Five safety profiles automatically configure the app:
 - Nearest verified responder auto-assigned
 - Full incident lifecycle: CREATED → ASSIGNED → EN_ROUTE → ARRIVED → RESOLVED
 
-### 🗺️ Safe Journey Tracker
-- Start journeys with origin, destination, transport mode
-- Custom ETA or auto-calculated from distance
-- Safety-scored route presets with CCTV coverage info
-- ETA extension buttons to prevent false alarms during delays
-- Route deviation detection (>300m off corridor → ATTENTION state)
-- Live GPS progress tracking with SVG map visualization
-- Share with Safety Circle (live journey updates)
+### 🗺️ Safe Journey & Corridor Sentinel
+- **Live Leaflet OpenStreetMap Engine**: Real-world interactive map with CartoDB dark tiles, zero API key required
+- **OSRM Road Routing**: Real turn-by-turn road geometry, road-distance computation, and transport mode speeds (Walking, Driving, Transit)
+- **Nominatim Geocoding**: Search any real-world address or landmark to pin destination directly on the map
+- **Browser GPS & Reverse Geocoding**: Instant "Use Live GPS" with automatic human-readable reverse address lookup
+- Safety-scored route presets with CCTV coverage, streetlight quality, and risk indices
+- Custom ETA override or auto-calculated dynamic arrival timestamps
+- ETA extension buttons (+5m, +15m) to prevent false alarms during unexpected commute delays
+- Real-time route deviation detection (>300m off corridor → ATTENTION state & circle notification)
+- Simulated movement telemetry to demo live transit progress
+- Proximity-based contact and responder markers rendered directly on the map corridor
 
 ### ✅ Scheduled Check-ins
 - Configurable daily welfare signals (Morning, Afternoon, Evening)
