@@ -17,7 +17,7 @@ import {
   Radio
 } from 'lucide-react';
 
-import { PWAInstallButton } from '../pwa/PWAInstallButton';
+import { PWAInstallBanner } from './PWAInstallBanner';
 import { NotificationCenter } from './NotificationCenter';
 
 interface Props {
@@ -259,8 +259,8 @@ export const Header: React.FC<Props> = ({ onOpenJuryModal, onOpenScenarioModal }
             </span>
           </button>
 
-          {/* PWA / Android APK Packager */}
-          <PWAInstallButton />
+          {/* PWA / Android App Install */}
+          <PWAInstallBanner variant="pill" />
 
           {/* Connect Friend's Phone Action */}
           <button

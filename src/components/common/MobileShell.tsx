@@ -11,6 +11,7 @@ import {
   Users,
   Clock
 } from 'lucide-react';
+import { PWAInstallBanner } from './PWAInstallBanner';
 
 interface Props {
   children: ReactNode;
@@ -51,6 +52,7 @@ export const MobileShell: React.FC<Props> = ({ children, activeTab, setActiveTab
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto overscroll-contain">
+          <PWAInstallBanner variant="banner" />
           {children}
         </div>
 
@@ -116,6 +118,7 @@ export const MobileShell: React.FC<Props> = ({ children, activeTab, setActiveTab
 
         {/* Screen Content */}
         <div className="flex-1 overflow-y-auto bg-slate-950 text-slate-100 relative scroll-smooth flex flex-col">
+          <PWAInstallBanner variant="banner" />
           {children}
         </div>
 
