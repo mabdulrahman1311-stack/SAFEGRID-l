@@ -25,9 +25,17 @@ interface Props {
   onOpenScenarioModal: () => void;
 }
 
+const IS_REAL_PHONE =
+  typeof window !== 'undefined' &&
+  (window.innerWidth <= 500 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+
 export const Header: React.FC<Props> = ({ onOpenJuryModal, onOpenScenarioModal }) => {
+  // On a real phone the MobileShell handles the UI — no desktop header needed
+  if (IS_REAL_PHONE) return null;
+
   const {
     viewMode,
+
     setViewMode,
     currentUser,
     setCurrentUser,

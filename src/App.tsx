@@ -26,6 +26,10 @@ import { GuardianCompanionView } from './components/guardian/GuardianCompanionVi
 import { ConnectFriendModal } from './components/modals/ConnectFriendModal';
 import { Smartphone, Monitor, ShieldCheck, Activity, Users, Radio } from 'lucide-react';
 
+const IS_REAL_PHONE =
+  typeof window !== 'undefined' &&
+  (window.innerWidth <= 500 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+
 const AppContent: React.FC = () => {
   const { viewMode, setViewMode, currentUser, safetyState, setIsConnectFriendModalOpen } = useSafeGrid();
   const [activeMobileTab, setActiveMobileTab] = useState<'home' | 'journey' | 'checkin' | 'circle' | 'timeline'>('home');
@@ -33,6 +37,11 @@ const AppContent: React.FC = () => {
   
   const [isJuryModalOpen, setIsJuryModalOpen] = useState(false);
   const [isScenarioModalOpen, setIsScenarioModalOpen] = useState(false);
+
+  // On a real phone, force MOBILE mode immediately
+  React.useEffect(() => {
+    if (IS_REAL_PHONE && viewMode !== 'MOBILE') setViewMode('MOBILE');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync active web tab when persona changes
   React.useEffect(() => {
@@ -57,45 +66,47 @@ const AppContent: React.FC = () => {
             <GuardianCompanionView />
           </div>
         ) : viewMode === 'MOBILE' ? (
-          /* Mobile App View in authentic device frame */
+          /* Mobile App View */
           <div className="flex-1 flex flex-col items-center justify-center relative">
-            {/* Context Sub-bar above phone */}
-            <div className="pt-4 flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs text-slate-400 px-4">
-              <span className="flex items-center gap-1.5 font-semibold text-slate-300">
-                <Smartphone className="w-4 h-4 text-rose-400" />
-                Mobile Prototype View
-              </span>
-              <span>•</span>
-              <span>Persona: <strong className="text-white">{currentUser.name}</strong></span>
-              <span>•</span>
-              <button
-                onClick={() => setIsConnectFriendModalOpen(true)}
-                className="text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 bg-amber-950/60 px-2 py-0.5 rounded-lg border border-amber-500/30 transition-colors"
-              >
-                <span>📱 Connect Friend&apos;s Phone</span>
-              </button>
-              <span>•</span>
-              <button
-                onClick={() => setViewMode('GUARDIAN')}
-                className="text-blue-400 hover:text-blue-300 underline font-medium transition-colors"
-              >
-                Guardian Screen
-              </button>
-              <span>•</span>
-              <button
-                onClick={() => setViewMode('WEB')}
-                className="text-rose-400 hover:text-rose-300 underline font-medium transition-colors"
-              >
-                Switch to Web App
-              </button>
-              <span>•</span>
-              <button
-                onClick={() => setViewMode('API_CONSOLE')}
-                className="text-purple-400 hover:text-purple-300 underline font-medium transition-colors"
-              >
-                REST API Console
-              </button>
-            </div>
+            {/* Context sub-bar — hide on real phone since it fills the screen */}
+            {!IS_REAL_PHONE && (
+              <div className="pt-4 flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs text-slate-400 px-4">
+                <span className="flex items-center gap-1.5 font-semibold text-slate-300">
+                  <Smartphone className="w-4 h-4 text-rose-400" />
+                  Mobile Prototype View
+                </span>
+                <span>•</span>
+                <span>Persona: <strong className="text-white">{currentUser.name}</strong></span>
+                <span>•</span>
+                <button
+                  onClick={() => setIsConnectFriendModalOpen(true)}
+                  className="text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 bg-amber-950/60 px-2 py-0.5 rounded-lg border border-amber-500/30 transition-colors"
+                >
+                  <span>📱 Connect Friend&apos;s Phone</span>
+                </button>
+                <span>•</span>
+                <button
+                  onClick={() => setViewMode('GUARDIAN')}
+                  className="text-blue-400 hover:text-blue-300 underline font-medium transition-colors"
+                >
+                  Guardian Screen
+                </button>
+                <span>•</span>
+                <button
+                  onClick={() => setViewMode('WEB')}
+                  className="text-rose-400 hover:text-rose-300 underline font-medium transition-colors"
+                >
+                  Switch to Web App
+                </button>
+                <span>•</span>
+                <button
+                  onClick={() => setViewMode('API_CONSOLE')}
+                  className="text-purple-400 hover:text-purple-300 underline font-medium transition-colors"
+                >
+                  REST API Console
+                </button>
+              </div>
+            )}
 
             <MobileShell activeTab={activeMobileTab} setActiveTab={setActiveMobileTab}>
               {activeMobileTab === 'home' && (
