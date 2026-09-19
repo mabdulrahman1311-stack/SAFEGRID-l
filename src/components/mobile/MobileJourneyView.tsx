@@ -480,7 +480,7 @@ export const MobileJourneyView: React.FC = () => {
                 value={origin}
                 onChange={e => setOrigin(e.target.value)}
                 placeholder="e.g., Central Metro Station"
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-rose-500"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-all"
               />
             </div>
 
@@ -493,7 +493,7 @@ export const MobileJourneyView: React.FC = () => {
                 value={destination}
                 onChange={e => setDestination(e.target.value)}
                 placeholder="e.g., Home (West Oak Ave)"
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-rose-500"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-all"
               />
             </div>
 
@@ -601,7 +601,7 @@ export const MobileJourneyView: React.FC = () => {
                 value={customNotes}
                 onChange={e => setCustomNotes(e.target.value)}
                 placeholder="e.g. Uber cab #WB-04-1928, white sedan"
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-rose-500"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-all"
               />
             </div>
           </div>
@@ -609,11 +609,15 @@ export const MobileJourneyView: React.FC = () => {
           <button
             id="btn-start-monitored-journey"
             onClick={handleStart}
-            className="w-full py-3.5 px-4 rounded-2xl bg-rose-600 hover:bg-rose-500 active:scale-98 text-white font-bold text-xs shadow-md shadow-rose-950/60 flex items-center justify-center gap-2 transition-all"
+            disabled={!origin.trim() || !destination.trim()}
+            className="w-full py-3.5 px-4 rounded-2xl bg-rose-600 hover:bg-rose-500 active:scale-[0.97] text-white font-bold text-sm shadow-lg shadow-rose-950/60 flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Navigation className="w-4 h-4" />
             <span>START PROTECTED CORRIDOR ({activeEta} MINS)</span>
           </button>
+          {(!origin.trim() || !destination.trim()) && (
+            <p className="text-xs text-amber-400 text-center mt-1">Please enter both origin and destination</p>
+          )}
         </div>
       )}
     </div>

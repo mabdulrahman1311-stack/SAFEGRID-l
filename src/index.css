@@ -3,22 +3,93 @@
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    /* Support iOS safe areas and Android notches */
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
   }
 
-  /* Prevent iOS rubber-band scroll on the body itself */
   html, body {
     overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Better tap highlight on mobile */
   * {
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     GLOBAL INPUT STYLING — fixes text visibility across ALL inputs
+     ═══════════════════════════════════════════════════════════════ */
+
+  /* All text inputs, textareas, selects — bright readable text */
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="number"],
+  input[type="search"],
+  input[type="url"],
+  input[type="password"],
+  textarea,
+  select {
+    color: #f1f5f9 !important;          /* slate-100 — bright, readable */
+    font-size: 14px !important;          /* readable, not tiny */
+    line-height: 1.5 !important;
+    caret-color: #f43f5e;                /* rose-500 cursor */
+    -webkit-text-fill-color: #f1f5f9;    /* Fix for iOS autofill */
+  }
+
+  /* Placeholder: visible but clearly different from typed text */
+  input::placeholder,
+  textarea::placeholder {
+    color: #64748b !important;           /* slate-500 — softer but readable */
+    -webkit-text-fill-color: #64748b;
+    opacity: 1 !important;
+    font-size: 13px !important;
+  }
+
+  /* Focus ring — glow effect so user knows which field is active */
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline: none !important;
+    border-color: #f43f5e !important;    /* rose-500 */
+    box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.2) !important;
+  }
+
+  /* Select dropdowns — make options readable on dark bg */
+  select option {
+    background-color: #0f172a;
+    color: #f1f5f9;
+    padding: 8px;
+  }
+
+  /* Autofill override — prevent Chrome's blue/white autofill bg */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 30px #0f172a inset !important;
+    -webkit-text-fill-color: #f1f5f9 !important;
+    border-color: #334155 !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
+  /* Range sliders — better contrast */
+  input[type="range"] {
+    accent-color: #f43f5e;
+  }
+
+  /* Checkbox/radio — consistent styling */
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: #f43f5e;
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Labels — ensure always readable */
+  label {
+    color: #94a3b8;                      /* slate-400 */
   }
 }
 

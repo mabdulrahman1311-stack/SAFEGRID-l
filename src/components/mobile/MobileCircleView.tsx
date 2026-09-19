@@ -481,8 +481,9 @@ export const MobileCircleView: React.FC = () => {
                   placeholder="e.g. Dr. Anita Roy"
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-purple-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
                 />
+                {!name.trim() && <p className="text-[10px] text-rose-400 mt-1">Name is required</p>}
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -494,7 +495,7 @@ export const MobileCircleView: React.FC = () => {
                     id="select-contact-relationship"
                     value={relationship}
                     onChange={e => setRelationship(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-purple-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
                   >
                     <option value="Family">Family</option>
                     <option value="Mother">Mother</option>
@@ -511,15 +512,16 @@ export const MobileCircleView: React.FC = () => {
                   <label className="text-[11px] font-semibold text-slate-400 block mb-1">
                     Phone Number
                   </label>
-                  <input
-                    id="input-contact-phone"
-                    type="tel"
-                    required
-                    placeholder="+1 (555) 000-0000"
-                    value={phone}
-                    onChange={e => setPhone(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-purple-500"
-                  />
+                    <input
+                     id="input-contact-phone"
+                     type="tel"
+                     required
+                     placeholder="+91 98765 43210"
+                     value={phone}
+                     onChange={e => setPhone(e.target.value)}
+                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                    />
+                    {!phone.trim() && <p className="text-[10px] text-rose-400 mt-1">Phone is required</p>}
                 </div>
               </div>
 
@@ -561,7 +563,7 @@ export const MobileCircleView: React.FC = () => {
                   placeholder="e.g. West Oak Apartments, Flat 302"
                   value={approxLocation}
                   onChange={e => setApproxLocation(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-purple-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
                 />
               </div>
 

@@ -336,7 +336,7 @@ export const MobileCheckInView: React.FC = () => {
                   placeholder="e.g. Evening BP & Heart Medication"
                   value={label}
                   onChange={e => setLabel(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
                 />
               </div>
 
@@ -352,7 +352,7 @@ export const MobileCheckInView: React.FC = () => {
                     placeholder="e.g. 08:30 AM"
                     value={scheduledTime}
                     onChange={e => setScheduledTime(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
                   />
                 </div>
 
@@ -364,7 +364,7 @@ export const MobileCheckInView: React.FC = () => {
                     id="select-checkin-grace"
                     value={gracePeriodMinutes}
                     onChange={e => setGracePeriodMinutes(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
                   >
                     <option value={10}>10 minutes</option>
                     <option value={15}>15 minutes</option>
@@ -383,7 +383,7 @@ export const MobileCheckInView: React.FC = () => {
                     id="select-checkin-frequency"
                     value={frequency}
                     onChange={e => setFrequency(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
                   >
                     <option value="DAILY">Daily</option>
                     <option value="WEEKDAYS">Weekdays</option>
@@ -400,7 +400,7 @@ export const MobileCheckInView: React.FC = () => {
                     id="select-checkin-category"
                     value={category}
                     onChange={e => setCategory(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
                   >
                     <option value="MEDICATION">Medication</option>
                     <option value="WELFARE">Daily Welfare</option>
