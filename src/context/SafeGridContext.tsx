@@ -10,7 +10,8 @@ import {
   OfflineEvent, 
   IncidentStatus,
   PersonType,
-  EmergencyServiceType
+  EmergencyServiceType,
+  AppNotification
 } from '../types';
 import { 
   INITIAL_PERSONAS, 
@@ -27,6 +28,8 @@ import {
   calculateDistanceKm, 
   calculateEtaMinutes, 
   formatEtaTimestamp,
+  resolveLocationName,
+  formatCoordinates,
   LOCATION_PRESETS 
 } from '../utils/geolocation';
 
@@ -74,6 +77,7 @@ interface SafeGridContextType {
   liveCoords: GeoCoordinates;
   isLocatingGps: boolean;
   refreshLiveGps: () => Promise<GeoCoordinates>;
+  setCustomLocation: (coords: Partial<GeoCoordinates> & { lat: number; lng: number }) => void;
   startJourney: (origin: string, dest: string, etaMinutes: number) => void;
   startJourneyWithInputs: (params: {
     origin: string;
@@ -89,6 +93,15 @@ interface SafeGridContextType {
   markJourneyArrived: () => void;
   cancelJourney: () => void;
   simulateOverdueJourney: () => void;
+  simulateRouteDeviation: () => void;
+  resolveRouteDeviation: (acknowledgedSafe: boolean) => void;
+
+  // Real-time In-App Notifications
+  notifications: AppNotification[];
+  addNotification: (notification: Omit<AppNotification, 'id' | 'timestamp' | 'isRead'>) => void;
+  markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: () => void;
+  clearAllNotifications: () => void;
 
   // Manual SOS & Countdown
   isSOSCountdownActive: boolean;
@@ -164,13 +177,98 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [checkins, setCheckins] = useState<CheckInSchedule[]>(INITIAL_CHECKINS);
   const [journey, setJourney] = useState<Journey | null>(INITIAL_JOURNEY);
 
-  // Live GPS Coordinates State
-  const [liveCoords, setLiveCoords] = useState<GeoCoordinates>({
-    lat: 12.9716,
-    lng: 77.5946,
-    accuracy: 12,
-    speed: 0,
-    timestamp: Date.now(),
+  // In-App Safety Notifications
+  const [notifications, setNotifications] = useState<AppNotification[]>([
+    {
+      id: 'notif-1',
+      title: 'Safety Circle Active',
+      message: '3 trusted contacts connected. Vicinity monitoring active at 3.0 km.',
+      timestamp: '08:45 AM',
+      type: 'CIRCLE',
+      isRead: false,
+    },
+    {
+      id: 'notif-2',
+      title: 'Morning Welfare Check',
+      message: 'Check-in completed on time. All vitals normal.',
+      timestamp: '08:52 AM',
+      type: 'CHECKIN',
+      isRead: true,
+    },
+    {
+      id: 'notif-3',
+      title: 'Standby Responder Nearby',
+      message: 'Dr. Anita Roy (Emergency Physician) is 0.8 km away in your sector.',
+      timestamp: '09:15 AM',
+      type: 'SYSTEM',
+      isRead: true,
+    }
+  ]);
+
+  const addNotification = (notifData: Omit<AppNotification, 'id' | 'timestamp' | 'isRead'>) => {
+    const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const newNotif: AppNotification = {
+      ...notifData,
+      id: 'notif-' + Date.now(),
+      timestamp: timeNow,
+      isRead: false,
+    };
+    setNotifications(prev => [newNotif, ...prev.slice(0, 29)]);
+  };
+
+  const markNotificationRead = (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+  };
+
+  const markAllNotificationsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+  };
+
+  const clearAllNotifications = () => {
+    setNotifications([]);
+  };
+
+  // Live GPS Coordinates State (checks URL parameters for paired friend tracking)
+  const [liveCoords, setLiveCoords] = useState<GeoCoordinates>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const pLat = params.get('lat');
+        const pLng = params.get('lng');
+        if (pLat && pLng) {
+          const latNum = parseFloat(pLat);
+          const lngNum = parseFloat(pLng);
+          if (!isNaN(latNum) && !isNaN(lngNum)) {
+            const pLoc = params.get('loc') || undefined;
+            const pArea = params.get('area') || undefined;
+            const resolved = resolveLocationName(latNum, lngNum);
+            return {
+              lat: latNum,
+              lng: lngNum,
+              accuracy: 10,
+              speed: 0,
+              timestamp: Date.now(),
+              locationName: pLoc || resolved.locationName,
+              approximateArea: pArea || resolved.approximateArea,
+              isRealGps: true,
+            };
+          }
+        }
+      } catch {
+        // query param parse fallback
+      }
+    }
+    const resolved = resolveLocationName(12.9716, 77.5946);
+    return {
+      lat: 12.9716,
+      lng: 77.5946,
+      accuracy: 12,
+      speed: 0,
+      timestamp: Date.now(),
+      locationName: resolved.locationName,
+      approximateArea: resolved.approximateArea,
+      isRealGps: false,
+    };
   });
   const [isLocatingGps, setIsLocatingGps] = useState(false);
 
@@ -299,13 +397,14 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   };
 
-  // GPS Location Refresh using Browser API with fallback
+  // GPS Location Refresh using Browser API with fallback and reverse-geocoding
   const refreshLiveGps = async (): Promise<GeoCoordinates> => {
     setIsLocatingGps(true);
     return new Promise<GeoCoordinates>((resolve) => {
       if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
+            const resolved = resolveLocationName(pos.coords.latitude, pos.coords.longitude);
             const coords: GeoCoordinates = {
               lat: pos.coords.latitude,
               lng: pos.coords.longitude,
@@ -313,29 +412,63 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
               speed: pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0,
               heading: pos.coords.heading || 0,
               timestamp: pos.timestamp,
+              locationName: resolved.locationName,
+              approximateArea: resolved.approximateArea,
+              isRealGps: true,
             };
             setLiveCoords(coords);
             setIsLocatingGps(false);
             if (journey && journey.status === 'ACTIVE') {
               updateJourneyLocation(coords);
             }
+            // Sync to backend immediately
+            fetch('/api/location', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                latitude: coords.lat,
+                longitude: coords.lng,
+                locationName: coords.locationName,
+                approximateArea: coords.approximateArea,
+                accuracy: coords.accuracy,
+                speed: coords.speed,
+              }),
+            }).catch(() => {});
             resolve(coords);
           },
           (err) => {
             console.warn('Geolocation fallback activated:', err.message);
             const offset = (Math.random() - 0.5) * 0.002;
+            const fallbackLat = 12.9716 + offset;
+            const fallbackLng = 77.5946 + offset;
+            const resolved = resolveLocationName(fallbackLat, fallbackLng);
             const fallback: GeoCoordinates = {
-              lat: 12.9716 + offset,
-              lng: 77.5946 + offset,
+              lat: fallbackLat,
+              lng: fallbackLng,
               accuracy: 14,
               speed: 16,
               timestamp: Date.now(),
+              locationName: resolved.locationName,
+              approximateArea: resolved.approximateArea,
+              isRealGps: false,
             };
             setLiveCoords(fallback);
             setIsLocatingGps(false);
             if (journey && journey.status === 'ACTIVE') {
               updateJourneyLocation(fallback);
             }
+            fetch('/api/location', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                latitude: fallback.lat,
+                longitude: fallback.lng,
+                locationName: fallback.locationName,
+                approximateArea: fallback.approximateArea,
+                accuracy: fallback.accuracy,
+                speed: fallback.speed,
+              }),
+            }).catch(() => {});
             resolve(fallback);
           },
           { enableHighAccuracy: true, timeout: 6000, maximumAge: 4000 }
@@ -345,6 +478,35 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
         resolve(liveCoords);
       }
     });
+  };
+
+  // Explicit location setter for switching cities/presets or synchronizing
+  const setCustomLocation = (coords: Partial<GeoCoordinates> & { lat: number; lng: number }) => {
+    const resolved = resolveLocationName(coords.lat, coords.lng);
+    const updated: GeoCoordinates = {
+      ...liveCoords,
+      ...coords,
+      locationName: coords.locationName || resolved.locationName,
+      approximateArea: coords.approximateArea || resolved.approximateArea,
+      timestamp: Date.now(),
+    };
+    setLiveCoords(updated);
+    if (journey && journey.status === 'ACTIVE') {
+      updateJourneyLocation(updated);
+    }
+    // Sync to backend immediately
+    fetch('/api/location', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        latitude: updated.lat,
+        longitude: updated.lng,
+        locationName: updated.locationName,
+        approximateArea: updated.approximateArea,
+        accuracy: updated.accuracy || 12,
+        speed: updated.speed || 0,
+      }),
+    }).catch(() => {});
   };
 
   // Sync battery when user changes
@@ -727,6 +889,9 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
       setJourney(prev => prev ? { ...prev, status: 'OVERDUE' } : null);
     }
     setSafetyState('ATTENTION');
+    const effLocName = liveCoords.locationName || resolveLocationName(liveCoords.lat, liveCoords.lng).locationName;
+    const effArea = liveCoords.approximateArea || resolveLocationName(liveCoords.lat, liveCoords.lng).approximateArea;
+
     const newIncident: Incident = {
       id: 'SG-' + Math.floor(1000 + Math.random() * 9000),
       userId: currentUser.id,
@@ -739,8 +904,8 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
       latitude: liveCoords.lat,
       longitude: liveCoords.lng,
       locationPrecision: gpsPrecision,
-      locationName: 'Sector 4 Transit Corridor',
-      approximateArea: 'Sector 4, Downtown',
+      locationName: effLocName,
+      approximateArea: effArea,
       createdAt: 'Just now',
       updatedAt: 'Just now',
       contactsNotifiedCount: 1,
@@ -758,6 +923,90 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
     };
     setActiveIncident(newIncident);
     setIncidents(prev => [newIncident, ...prev]);
+
+    addNotification({
+      title: '⚠️ Journey Overdue Warning',
+      message: 'Expected arrival time passed. 10m grace period active to prevent false alarm.',
+      type: 'JOURNEY',
+      actor: 'Journey Monitor',
+    });
+  };
+
+  // Route Deviation Engine
+  const simulateRouteDeviation = () => {
+    if (!journey) return;
+    setJourney(prev => prev ? {
+      ...prev,
+      status: 'DEVIATION',
+      isDeviated: true,
+      deviationDistanceMeters: 350,
+      notes: '⚠️ Route deviation detected: 350m off designated safe corridor.',
+    } : null);
+    setSafetyState('ATTENTION');
+
+    const incId = 'SG-' + Math.floor(1000 + Math.random() * 9000);
+    const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const devIncident: Incident = {
+      id: incId,
+      userId: currentUser.id,
+      userName: currentUser.name,
+      userPhone: currentUser.phone,
+      type: 'OVERDUE_JOURNEY',
+      priority: 'MEDIUM',
+      status: 'ATTENTION',
+      state: 'ATTENTION',
+      latitude: liveCoords.lat + 0.003,
+      longitude: liveCoords.lng + 0.004,
+      locationPrecision: 15,
+      locationName: '350m Off Designated Corridor (Transit Lane)',
+      approximateArea: liveCoords.approximateArea || 'Sector 4 Community Grid',
+      createdAt: 'Just now',
+      updatedAt: 'Just now',
+      contactsNotifiedCount: contacts.filter(c => c.canTrackLiveJourney).length,
+      events: [
+        {
+          id: 'evt-dev-' + Date.now(),
+          timestamp: nowStr,
+          title: 'Route Deviation Flagged',
+          description: 'User drifted 350m outside the pre-computed safe corridor. 30s welfare check window active.',
+          actor: 'Journey Corridor Sentinel',
+          type: 'system',
+        }
+      ],
+      notes: 'Automated deviation check triggered. Awaiting user acknowledgment or safety circle escalation.',
+    };
+    setActiveIncident(devIncident);
+    setIncidents(prev => [devIncident, ...prev]);
+
+    addNotification({
+      title: '⚠️ Route Deviation Detected',
+      message: 'You drifted 350m off your planned route. Please verify that you are safe.',
+      type: 'JOURNEY',
+      actor: 'Corridor Sentinel',
+    });
+  };
+
+  const resolveRouteDeviation = (acknowledgedSafe: boolean) => {
+    if (acknowledgedSafe) {
+      setJourney(prev => prev ? {
+        ...prev,
+        status: 'ACTIVE',
+        isDeviated: false,
+        deviationDistanceMeters: 0,
+        notes: 'User verified alternate safe path. Corridor updated.',
+      } : null);
+      setSafetyState('SAFE');
+      if (activeIncident && activeIncident.type === 'OVERDUE_JOURNEY') {
+        setActiveIncident(null);
+      }
+      addNotification({
+        title: '✅ Route Updated & Safe',
+        message: 'Alternate route confirmed safe. Normal commute monitoring resumed.',
+        type: 'JOURNEY',
+      });
+    } else {
+      escalateFromAttentionToEmergency('User or timeout escalated route deviation to emergency distress.');
+    }
   };
 
   // Manual SOS
@@ -779,7 +1028,24 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
   };
 
   const triggerEmergencyIncident = (type: Incident['type'], reason: string) => {
-    fetch('/api/sos', { method: 'POST' }).catch(() => {});
+    const effLocName = liveCoords.locationName || resolveLocationName(liveCoords.lat, liveCoords.lng).locationName;
+    const effArea = liveCoords.approximateArea || resolveLocationName(liveCoords.lat, liveCoords.lng).approximateArea;
+
+    fetch('/api/sos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        latitude: liveCoords.lat,
+        longitude: liveCoords.lng,
+        locationName: effLocName,
+        approximateArea: effArea,
+        userName: currentUser.name,
+        userPhone: currentUser.phone,
+        type,
+        notes: reason
+      })
+    }).catch(() => {});
+
     setSafetyState('EMERGENCY');
     const matchedResponder = responders[0]; // Dr. Anita
 
@@ -843,8 +1109,8 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
       latitude: liveCoords.lat,
       longitude: liveCoords.lng,
       locationPrecision: gpsPrecision,
-      locationName: 'Current Active Device Coordinates',
-      approximateArea: 'Sector 3 / Central',
+      locationName: effLocName,
+      approximateArea: effArea,
       createdAt: 'Just now',
       updatedAt: 'Just now',
       assignedResponderId: matchedResponder.id,
@@ -1062,6 +1328,7 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
         liveCoords,
         isLocatingGps,
         refreshLiveGps,
+        setCustomLocation,
         startJourney,
         startJourneyWithInputs,
         updateJourneyLocation,
@@ -1069,6 +1336,13 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
         markJourneyArrived,
         cancelJourney,
         simulateOverdueJourney,
+        simulateRouteDeviation,
+        resolveRouteDeviation,
+        notifications,
+        addNotification,
+        markNotificationRead,
+        markAllNotificationsRead,
+        clearAllNotifications,
         isSOSCountdownActive,
         sosCountdownRemaining,
         triggerSOS,

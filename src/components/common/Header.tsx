@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 import { PWAInstallButton } from '../pwa/PWAInstallButton';
+import { NotificationCenter } from './NotificationCenter';
 
 interface Props {
   onOpenJuryModal: () => void;
@@ -41,6 +42,13 @@ export const Header: React.FC<Props> = ({ onOpenJuryModal, onOpenScenarioModal }
     gpsPrecision,
     toggleGpsPrecision,
     resetAllToDefault,
+    liveCoords,
+    isLocatingGps,
+    refreshLiveGps,
+    notifications,
+    markNotificationRead,
+    markAllNotificationsRead,
+    clearAllNotifications,
   } = useSafeGrid();
 
   const toggleBattery = () => {
@@ -187,6 +195,14 @@ export const Header: React.FC<Props> = ({ onOpenJuryModal, onOpenScenarioModal }
             </div>
           </div>
 
+          {/* Real-time Safety Notifications */}
+          <NotificationCenter
+            notifications={notifications}
+            onMarkAsRead={markNotificationRead}
+            onMarkAllAsRead={markAllNotificationsRead}
+            onClearAll={clearAllNotifications}
+          />
+
           {/* Network Simulator */}
           <button
             id="toggle-network"
@@ -222,15 +238,17 @@ export const Header: React.FC<Props> = ({ onOpenJuryModal, onOpenScenarioModal }
             <span>{batteryLevel}%</span>
           </button>
 
-          {/* GPS Accuracy Simulator */}
+          {/* GPS Accuracy & Location Tracker */}
           <button
             id="toggle-gps"
-            onClick={toggleGpsPrecision}
-            title={`GPS Accuracy: ~${gpsPrecision}m (Click to toggle degraded GPS)`}
-            className="hidden xl:flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 text-xs font-medium transition-all"
+            onClick={() => refreshLiveGps()}
+            title={`Location: ${liveCoords.locationName || 'Live GPS'} (${liveCoords.lat.toFixed(4)}, ${liveCoords.lng.toFixed(4)}) • Click to query GPS sensor`}
+            className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-medium transition-all"
           >
-            <MapPin className="w-3.5 h-3.5 text-rose-400" />
-            <span>~{gpsPrecision}m</span>
+            <MapPin className={`w-3.5 h-3.5 text-rose-400 ${isLocatingGps ? 'animate-spin' : ''}`} />
+            <span className="max-w-[120px] truncate">
+              {liveCoords.locationName ? liveCoords.locationName.split(' (')[0] : `~${gpsPrecision}m`}
+            </span>
           </button>
 
           {/* PWA / Android APK Packager */}

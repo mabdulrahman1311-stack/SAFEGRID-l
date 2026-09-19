@@ -294,6 +294,15 @@ interface ServerState {
     distanceKmRemaining?: number;
   };
   incident: Incident | null;
+  location?: {
+    latitude: number;
+    longitude: number;
+    locationName: string;
+    approximateArea: string;
+    accuracy: number;
+    speed: number;
+    updatedAt: string;
+  };
   activity: Array<{
     id: string;
     time: string;
@@ -318,6 +327,15 @@ let currentState: ServerState = {
     distanceKmRemaining: 3.2
   },
   incident: null,
+  location: {
+    latitude: 12.9716,
+    longitude: 77.5946,
+    locationName: 'Central Metro Corridor',
+    approximateArea: 'Bengaluru Central',
+    accuracy: 12,
+    speed: 0,
+    updatedAt: getNowFormatted()
+  },
   activity: [
     { id: '1', time: getNowFormatted(), text: 'SafeGrid Welfare Core service initialized.', type: 'system' },
     { id: '2', time: getNowFormatted(), text: 'Safety state: SAFE. All background signals normal.', type: 'system' }
@@ -555,11 +573,11 @@ async function startServer() {
       priority: isEmergency ? 'CRITICAL' : 'MEDIUM',
       status,
       state: safetyState,
-      latitude: latitude || 37.7749,
-      longitude: longitude || -122.4194,
+      latitude: typeof latitude === 'number' ? latitude : (currentState.location?.latitude ?? 12.9716),
+      longitude: typeof longitude === 'number' ? longitude : (currentState.location?.longitude ?? 77.5946),
       locationPrecision: 15,
-      locationName: locationName || 'Sector 4, West Corridor (~15m)',
-      approximateArea: approximateArea || 'Sector 4, West Hub',
+      locationName: locationName || currentState.location?.locationName || 'Live GPS Position',
+      approximateArea: approximateArea || currentState.location?.approximateArea || 'Active Zone',
       createdAt: nowStr,
       updatedAt: nowStr,
       contactsNotifiedCount: dbContacts.filter(c => c.canReceiveSOS).length,
@@ -734,24 +752,53 @@ async function startServer() {
   // ----------------------------------------------------
   // BACKWARDS-COMPATIBLE WORKFLOW ENDPOINTS
   // ----------------------------------------------------
+  app.post('/api/location', (req: Request, res: Response) => {
+    const { latitude, longitude, locationName, approximateArea, accuracy, speed } = req.body || {};
+    if (typeof latitude === 'number' && typeof longitude === 'number') {
+      currentState.location = {
+        latitude,
+        longitude,
+        locationName: locationName || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+        approximateArea: approximateArea || 'Active Telemetry Zone',
+        accuracy: typeof accuracy === 'number' ? accuracy : 15,
+        speed: typeof speed === 'number' ? speed : 0,
+        updatedAt: getNowFormatted()
+      };
+      if (currentState.incident) {
+        currentState.incident.latitude = latitude;
+        currentState.incident.longitude = longitude;
+        if (locationName) currentState.incident.locationName = locationName;
+        if (approximateArea) currentState.incident.approximateArea = approximateArea;
+      }
+    }
+    res.json({ success: true, location: currentState.location, incident: currentState.incident });
+  });
+
   app.post('/api/sos', (req: Request, res: Response) => {
     currentState.safetyState = 'EMERGENCY';
     const incId = 'SG-' + Math.floor(1000 + Math.random() * 9000);
     const nowStr = getNowFormatted();
 
+    const { latitude, longitude, locationName, approximateArea, userName, userPhone, type, notes } = req.body || {};
+
+    const effLat = typeof latitude === 'number' ? latitude : (currentState.location?.latitude ?? 12.9716);
+    const effLng = typeof longitude === 'number' ? longitude : (currentState.location?.longitude ?? 77.5946);
+    const effLoc = locationName || currentState.location?.locationName || `GPS: ${effLat.toFixed(4)}, ${effLng.toFixed(4)}`;
+    const effArea = approximateArea || currentState.location?.approximateArea || 'Active Telemetry Zone';
+
     const inc: Incident = {
       id: incId,
       userId: 'user_sarah',
-      userName: 'Sarah Jenkins',
-      userPhone: '+1 (555) 349-8812',
-      type: 'MANUAL_SOS',
+      userName: userName || 'Sarah Jenkins',
+      userPhone: userPhone || '+1 (555) 349-8812',
+      type: type || 'MANUAL_SOS',
       priority: 'CRITICAL',
       status: 'ESCALATED',
       state: 'EMERGENCY',
-      locationName: 'Sector 4, West Corridor (~15m)',
-      approximateArea: 'Sector 4, West Hub',
-      latitude: 37.7749,
-      longitude: -122.4194,
+      locationName: effLoc,
+      approximateArea: effArea,
+      latitude: effLat,
+      longitude: effLng,
       locationPrecision: 15,
       createdAt: nowStr,
       updatedAt: nowStr,
@@ -761,8 +808,8 @@ async function startServer() {
           id: 'evt_1',
           timestamp: nowStr,
           title: 'Manual SOS Triggered',
-          description: 'User activated SOS with immediate escalation.',
-          actor: 'Sarah Jenkins',
+          description: notes || 'User activated SOS with immediate escalation.',
+          actor: userName || 'Sarah Jenkins',
           type: 'escalation'
         }
       ]
@@ -770,8 +817,14 @@ async function startServer() {
 
     dbIncidents.unshift(inc);
     currentState.incident = inc;
+    if (currentState.location) {
+      currentState.location.latitude = effLat;
+      currentState.location.longitude = effLng;
+      currentState.location.locationName = effLoc;
+      currentState.location.approximateArea = effArea;
+    }
 
-    logActivity(`🔴 Manual SOS triggered! Emergency responders & safety circle alerted. Incident #${incId}`, 'escalation');
+    logActivity(`🔴 Manual SOS triggered at ${effLoc}! Emergency responders & safety circle alerted. Incident #${incId}`, 'escalation');
     res.json({ success: true, message: 'Emergency SOS triggered', state: currentState, incident: inc });
   });
 

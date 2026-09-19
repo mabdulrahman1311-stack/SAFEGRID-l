@@ -57,6 +57,27 @@ export const MobileEmergencyView: React.FC = () => {
           {activeIncident.notes || 'Emergency assistance protocol initiated.'}
         </p>
 
+        {/* Active Incident Coordinates & Location */}
+        <div className="mt-3 p-2.5 bg-rose-900/40 border border-rose-600/40 rounded-xl flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <MapPin className="w-4 h-4 text-rose-300 shrink-0" />
+            <div className="min-w-0">
+              <p className="font-bold text-white text-xs truncate">{activeIncident.locationName || 'Live GPS Location'}</p>
+              <p className="text-[11px] text-rose-200 font-mono truncate">
+                {activeIncident.latitude.toFixed(5)}, {activeIncident.longitude.toFixed(5)} • {activeIncident.approximateArea || 'Active Area'}
+              </p>
+            </div>
+          </div>
+          <a
+            href={`https://maps.google.com/?q=${activeIncident.latitude.toFixed(5)},${activeIncident.longitude.toFixed(5)}`}
+            target="_blank"
+            rel="noreferrer"
+            className="px-2.5 py-1 rounded-lg bg-rose-800 hover:bg-rose-700 text-[11px] font-bold text-white shrink-0 transition-colors ml-2"
+          >
+            Maps ↗
+          </a>
+        </div>
+
         {/* Automated Emergency Dispatch Escalation Banner if contacts not in vicinity */}
         {activeIncident.emergencyServiceInformed && (
           <div className="mt-3 p-3 bg-red-900/60 border border-red-500/70 rounded-xl space-y-1">

@@ -11,6 +11,9 @@ export interface GeoCoordinates {
   speed?: number; // km/h
   heading?: number;
   timestamp?: number;
+  locationName?: string;
+  approximateArea?: string;
+  isRealGps?: boolean;
 }
 
 export interface VicinityCheckResult {
@@ -71,15 +74,104 @@ export function formatEtaTimestamp(minutesFromNow: number): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+// Format coordinates into standard latitude/longitude with cardinal hemisphere markers
+export function formatCoordinates(lat: number, lng: number): string {
+  const latDir = lat >= 0 ? 'N' : 'S';
+  const lngDir = lng >= 0 ? 'E' : 'W';
+  return `${Math.abs(lat).toFixed(4)}° ${latDir}, ${Math.abs(lng).toFixed(4)}° ${lngDir}`;
+}
+
+// Reverse-geocode lookup helper that resolves consistent human-readable location names
+export function resolveLocationName(lat: number, lng: number): { locationName: string; approximateArea: string } {
+  // Check known major regions within reasonable radius (~15-20km)
+  if (Math.abs(lat - 37.7749) < 0.25 && Math.abs(lng - (-122.4194)) < 0.25) {
+    return {
+      locationName: 'Market & 4th St Transit Hub, San Francisco',
+      approximateArea: 'San Francisco Downtown, CA'
+    };
+  }
+  if (Math.abs(lat - 40.7128) < 0.25 && Math.abs(lng - (-74.0060)) < 0.25) {
+    return {
+      locationName: 'Midtown Manhattan & Penn Station',
+      approximateArea: 'New York City, NY'
+    };
+  }
+  if (Math.abs(lat - 51.5074) < 0.25 && Math.abs(lng - (-0.1278)) < 0.25) {
+    return {
+      locationName: 'Westminster & Central Transit Corridor',
+      approximateArea: 'Central London, UK'
+    };
+  }
+  if (Math.abs(lat - 24.7136) < 0.35 && Math.abs(lng - 46.6753) < 0.35) {
+    return {
+      locationName: 'King Fahd Road / Olaya District',
+      approximateArea: 'Riyadh, Saudi Arabia'
+    };
+  }
+  if (Math.abs(lat - 25.2048) < 0.35 && Math.abs(lng - 55.2708) < 0.35) {
+    return {
+      locationName: 'Sheikh Zayed Rd / Downtown Hub',
+      approximateArea: 'Dubai, UAE'
+    };
+  }
+  if (Math.abs(lat - 12.9716) < 0.35 && Math.abs(lng - 77.5946) < 0.35) {
+    return {
+      locationName: 'Central Metro Corridor (MG Rd / Tech Zone)',
+      approximateArea: 'Bengaluru Central, India'
+    };
+  }
+  if (Math.abs(lat - 48.8566) < 0.25 && Math.abs(lng - 2.3522) < 0.25) {
+    return {
+      locationName: 'Châtelet - Les Halles Transit',
+      approximateArea: 'Central Paris, France'
+    };
+  }
+
+  // Generic fallback using exact formatted coordinates
+  const formatted = formatCoordinates(lat, lng);
+  return {
+    locationName: `GPS Fix: ${formatted}`,
+    approximateArea: `Latitude ${lat.toFixed(2)}, Longitude ${lng.toFixed(2)}`
+  };
+}
+
 // Well-known landmarks/presets for test and journey selection
 export const LOCATION_PRESETS = [
-  { name: 'Current Live GPS Location', coords: { lat: 12.9716, lng: 77.5946 }, category: 'live' },
-  { name: 'Home (West Residence, Oak Ave)', coords: { lat: 12.9352, lng: 77.6245 }, category: 'home' },
-  { name: 'University Tech Hub / Campus', coords: { lat: 12.9716, lng: 77.5946 }, category: 'work' },
-  { name: 'Central Metro Transit Station', coords: { lat: 12.9510, lng: 77.6080 }, category: 'transit' },
-  { name: 'City Hospital & Trauma Center', coords: { lat: 12.9605, lng: 77.6150 }, category: 'emergency' },
-  { name: 'Greenwood School (Junior Wing)', coords: { lat: 12.9430, lng: 77.6310 }, category: 'school' },
-  { name: 'Sector 4 Police Precinct', coords: { lat: 12.9580, lng: 77.6020 }, category: 'police' },
+  { 
+    name: 'Current Live GPS Location (Device Sensor)', 
+    coords: { lat: 12.9716, lng: 77.5946, locationName: 'Central Metro Corridor', approximateArea: 'Bengaluru Central' }, 
+    category: 'live' 
+  },
+  { 
+    name: 'San Francisco, CA (Market & 4th St)', 
+    coords: { lat: 37.7749, lng: -122.4194, locationName: 'Market & 4th St Transit Hub', approximateArea: 'San Francisco, CA' }, 
+    category: 'city' 
+  },
+  { 
+    name: 'Riyadh (Olaya / King Fahd Rd)', 
+    coords: { lat: 24.7136, lng: 46.6753, locationName: 'King Fahd Road / Olaya', approximateArea: 'Riyadh, Saudi Arabia' }, 
+    category: 'city' 
+  },
+  { 
+    name: 'London (Westminster Transit Hub)', 
+    coords: { lat: 51.5074, lng: -0.1278, locationName: 'Westminster Station Corridor', approximateArea: 'Central London, UK' }, 
+    category: 'city' 
+  },
+  { 
+    name: 'New York (Midtown / Penn Station)', 
+    coords: { lat: 40.7128, lng: -74.0060, locationName: 'Penn Station & 7th Ave', approximateArea: 'New York, NY' }, 
+    category: 'city' 
+  },
+  { 
+    name: 'Dubai (Downtown / Burj Corridor)', 
+    coords: { lat: 25.2048, lng: 55.2708, locationName: 'Sheikh Zayed Rd / Downtown', approximateArea: 'Dubai, UAE' }, 
+    category: 'city' 
+  },
+  { 
+    name: 'Bengaluru (MG Road Central)', 
+    coords: { lat: 12.9716, lng: 77.5946, locationName: 'Central Metro Corridor', approximateArea: 'Bengaluru Central, India' }, 
+    category: 'city' 
+  },
 ];
 
 /**

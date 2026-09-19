@@ -35,7 +35,10 @@ export const MobileHome: React.FC<Props> = ({ onNavigate }) => {
     toggleSafetySession,
     simulateMissedCheckIn,
     simulateOverdueJourney,
-    setIsConnectFriendModalOpen
+    setIsConnectFriendModalOpen,
+    liveCoords,
+    isLocatingGps,
+    refreshLiveGps
   } = useSafeGrid();
 
   const nextCheckIn = checkins.find(c => !c.isCompletedToday) || checkins[0];
@@ -68,6 +71,17 @@ export const MobileHome: React.FC<Props> = ({ onNavigate }) => {
           <h2 className="text-xl font-black text-white tracking-tight">
             Hi, {currentUser.name.split(' ')[0]}
           </h2>
+          {/* Live Location Telemetry Pill */}
+          <button
+            onClick={() => refreshLiveGps()}
+            title="Click to refresh device GPS coordinates"
+            className="mt-1 flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-300 hover:text-white transition-colors"
+          >
+            <MapPin className={`w-3 h-3 text-rose-400 ${isLocatingGps ? 'animate-spin' : ''}`} />
+            <span className="truncate max-w-[200px]">
+              {liveCoords.locationName || 'Live GPS'}: {liveCoords.lat.toFixed(4)}, {liveCoords.lng.toFixed(4)}
+            </span>
+          </button>
         </div>
         <div className="flex items-center gap-2">
           <PWAInstallButton />

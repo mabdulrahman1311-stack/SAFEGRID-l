@@ -16,9 +16,20 @@ import {
   Search,
   Download
 } from 'lucide-react';
+import { SafeGridMap } from '../common/SafeGridMap';
 
 export const AdminCommandCenter: React.FC = () => {
-  const { incidents, responders, responderUpdateStatus, safetyState } = useSafeGrid();
+  const { 
+    incidents, 
+    responders, 
+    responderUpdateStatus, 
+    safetyState,
+    liveCoords,
+    contacts,
+    vicinityRadiusKm,
+    activeIncident,
+    journey
+  } = useSafeGrid();
   const [filterType, setFilterType] = useState<string>('ALL');
 
   const activeCount = incidents.filter(i => i.state === 'EMERGENCY').length;
@@ -175,29 +186,17 @@ export const AdminCommandCenter: React.FC = () => {
             </div>
           </div>
 
-          {/* Map canvas simulation */}
-          <div className="w-full h-64 bg-slate-950 rounded-2xl border border-slate-800 relative overflow-hidden flex items-center justify-center p-4">
-            {/* Grid lines */}
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:24px_24px] opacity-40 pointer-events-none" />
-
-            {/* Approximate Zone Clusters */}
-            <div className="absolute top-1/4 left-1/3 p-3 rounded-full bg-rose-500/20 border border-rose-500/50 flex items-center justify-center animate-pulse">
-              <div className="w-4 h-4 rounded-full bg-rose-500 shadow-lg shadow-rose-500/80" />
-              <span className="absolute -bottom-5 text-[9px] font-bold text-rose-300 whitespace-nowrap">
-                Sector 3 (~18m precision)
-              </span>
-            </div>
-
-            <div className="absolute bottom-1/4 right-1/4 p-4 rounded-full bg-amber-500/20 border border-amber-500/50 flex items-center justify-center">
-              <div className="w-4 h-4 rounded-full bg-amber-400" />
-              <span className="absolute -bottom-5 text-[9px] font-bold text-amber-300 whitespace-nowrap">
-                Sector 4 Transit (~24m)
-              </span>
-            </div>
-
-            {/* Responder Location Markers */}
-            <div className="absolute top-1/3 right-1/3 w-3 h-3 rounded-full bg-emerald-400 border border-white" title="Dr. Anita Roy (Available)" />
-            <div className="absolute bottom-1/3 left-1/4 w-3 h-3 rounded-full bg-emerald-400 border border-white" title="Ravi Kumar (Available)" />
+          {/* Interactive Community Map */}
+          <div className="w-full rounded-2xl overflow-hidden border border-slate-800">
+            <SafeGridMap
+              userCoords={liveCoords}
+              contacts={contacts}
+              responders={responders}
+              activeIncident={activeIncident}
+              journey={journey}
+              vicinityRadiusKm={vicinityRadiusKm}
+              height={270}
+            />
           </div>
 
           <div className="text-[11px] text-slate-400 leading-tight">

@@ -16,8 +16,10 @@ import {
   Sparkles,
   Volume2,
   VolumeX,
-  RotateCcw
+  RotateCcw,
+  Compass
 } from 'lucide-react';
+import { formatCoordinates, resolveLocationName } from '../../utils/geolocation';
 
 export const GuardianCompanionView: React.FC = () => {
   const { 
@@ -30,11 +32,77 @@ export const GuardianCompanionView: React.FC = () => {
     setSafetyState,
     setViewMode,
     triggerEmergencyIncident,
-    resetAllToDefault
+    resetAllToDefault,
+    setCustomLocation
   } = useSafeGrid();
 
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [friendStatus, setFriendStatus] = useState<'STANDBY' | 'RESPONDING' | 'ARRIVED'>('STANDBY');
+
+  // Parse location and user metadata from URL query parameters (sent via QR or SMS)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const pLat = params.get('lat');
+        const pLng = params.get('lng');
+        if (pLat && pLng) {
+          const latNum = parseFloat(pLat);
+          const lngNum = parseFloat(pLng);
+          if (!isNaN(latNum) && !isNaN(lngNum)) {
+            const pLoc = params.get('loc') || undefined;
+            const pArea = params.get('area') || undefined;
+            setCustomLocation({
+              lat: latNum,
+              lng: lngNum,
+              locationName: pLoc,
+              approximateArea: pArea,
+              isRealGps: true,
+            });
+          }
+        }
+      } catch {
+        // ignore param errors
+      }
+    }
+  }, []);
+
+  // Poll backend state every 3s to reflect changes triggered from the user's phone in real time
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/state');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.safetyState && data.safetyState !== safetyState) {
+            setSafetyState(data.safetyState);
+          }
+          if (data.location && data.location.latitude && data.location.longitude) {
+            if (
+              Math.abs(data.location.latitude - liveCoords.lat) > 0.0001 ||
+              Math.abs(data.location.longitude - liveCoords.lng) > 0.0001
+            ) {
+              setCustomLocation({
+                lat: data.location.latitude,
+                lng: data.location.longitude,
+                locationName: data.location.locationName,
+                approximateArea: data.location.approximateArea,
+              });
+            }
+          }
+        }
+      } catch {
+        // network polling fallback
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [safetyState, liveCoords.lat, liveCoords.lng]);
+
+  // Coordinates priority: active incident coordinates > liveCoords
+  const effLat = activeIncident?.latitude ?? liveCoords.lat;
+  const effLng = activeIncident?.longitude ?? liveCoords.lng;
+  const effLoc = activeIncident?.locationName ?? liveCoords.locationName ?? resolveLocationName(effLat, effLng).locationName;
+  const effArea = activeIncident?.approximateArea ?? liveCoords.approximateArea ?? resolveLocationName(effLat, effLng).approximateArea;
 
   // Trigger web audio buzzer if emergency is triggered
   useEffect(() => {
@@ -58,7 +126,7 @@ export const GuardianCompanionView: React.FC = () => {
     }
   }, [safetyState, soundEnabled]);
 
-  const mapsUrl = `https://maps.google.com/?q=${liveCoords.lat.toFixed(5)},${liveCoords.lng.toFixed(5)}`;
+  const mapsUrl = `https://maps.google.com/?q=${effLat.toFixed(5)},${effLng.toFixed(5)}`;
 
   const handleAcceptDispatch = () => {
     setFriendStatus('RESPONDING');
@@ -153,10 +221,13 @@ export const GuardianCompanionView: React.FC = () => {
               <span className="font-semibold text-slate-400 block">Exact Live GPS Coordinates</span>
               <p className="text-sm font-mono font-bold text-white flex items-center gap-1.5">
                 <MapPin className="w-4 h-4 text-rose-400" />
-                <span>{liveCoords.lat.toFixed(5)}, {liveCoords.lng.toFixed(5)}</span>
+                <span>{effLat.toFixed(5)}, {effLng.toFixed(5)}</span>
               </p>
-              <p className="text-[11px] text-slate-400">
-                Accuracy: ~{liveCoords.accuracy} meters • Sector 3/4 Corridor
+              <p className="text-[11px] text-slate-300 font-medium">
+                {effLoc} {effArea && `• ${effArea}`}
+              </p>
+              <p className="text-[10px] text-slate-500 font-mono">
+                {formatCoordinates(effLat, effLng)}
               </p>
             </div>
 
@@ -263,7 +334,7 @@ export const GuardianCompanionView: React.FC = () => {
               <span className="text-slate-400 block text-[11px]">Last Area</span>
               <p className="text-base font-bold text-white mt-1 flex items-center gap-1.5 truncate">
                 <MapPin className="w-4 h-4 text-blue-400 shrink-0" />
-                <span className="truncate">Sector 4 Campus</span>
+                <span className="truncate">{effLoc}</span>
               </p>
             </div>
 

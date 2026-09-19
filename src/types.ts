@@ -130,7 +130,7 @@ export interface Journey {
   expectedArrivalTime: string; // e.g. "07:30 PM"
   actualArrivalTime?: string;
   progressPercent: number;
-  status: 'ACTIVE' | 'OVERDUE' | 'ARRIVED' | 'CANCELLED';
+  status: 'NOT_STARTED' | 'ACTIVE' | 'ON_TRACK' | 'ATTENTION' | 'DELAYED' | 'OVERDUE' | 'DEVIATION' | 'ALERT' | 'ARRIVED' | 'COMPLETED' | 'CANCELLED';
   sharedWithCircle: boolean;
   notes?: string;
   etaExtensionsCount: number;
@@ -141,6 +141,20 @@ export interface Journey {
   distanceKmRemaining?: number;
   calculatedEtaMinutes?: number;
   isLiveGpsActive?: boolean;
+  routeSafetyScore?: number;
+  isDeviated?: boolean;
+  deviationDistanceMeters?: number;
+}
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  message: string;
+  timestamp: string;
+  type: 'EMERGENCY' | 'JOURNEY' | 'CIRCLE' | 'CHECKIN' | 'SYSTEM';
+  isRead: boolean;
+  actionUrl?: string;
+  actor?: string;
 }
 
 export interface Responder {

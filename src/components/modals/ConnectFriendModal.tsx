@@ -16,8 +16,11 @@ import {
   Sparkles,
   X,
   Radio,
-  Play
+  Play,
+  RotateCw,
+  Compass
 } from 'lucide-react';
+import { formatCoordinates, LOCATION_PRESETS } from '../../utils/geolocation';
 
 export const ConnectFriendModal: React.FC = () => {
   const { 
@@ -28,7 +31,10 @@ export const ConnectFriendModal: React.FC = () => {
     liveCoords, 
     triggerEmergencyIncident,
     setViewMode,
-    activeIncident
+    activeIncident,
+    refreshLiveGps,
+    isLocatingGps,
+    setCustomLocation
   } = useSafeGrid();
 
   const [activeTab, setActiveTab] = useState<'sms' | 'qr'>('sms');
@@ -45,7 +51,16 @@ export const ConnectFriendModal: React.FC = () => {
 
   const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://safegrid.app';
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
-  const guardianUrl = `${currentOrigin}${currentPath}?role=guardian`;
+  
+  const latStr = liveCoords.lat.toFixed(5);
+  const lngStr = liveCoords.lng.toFixed(5);
+  const locStr = encodeURIComponent(liveCoords.locationName || 'Live GPS Telemetry');
+  const areaStr = encodeURIComponent(liveCoords.approximateArea || 'Active Telemetry Corridor');
+  const userStr = encodeURIComponent(currentUser.name);
+  const phoneStr = encodeURIComponent(currentUser.phone);
+  
+  // URL ensures the friend's phone renders the EXACT SAME location
+  const guardianUrl = `${currentOrigin}${currentPath}?role=guardian&lat=${latStr}&lng=${lngStr}&loc=${locStr}&area=${areaStr}&user=${userStr}&phone=${phoneStr}`;
 
   const handleContactSelect = (contactId: string) => {
     setSelectedContactId(contactId);
@@ -67,13 +82,15 @@ export const ConnectFriendModal: React.FC = () => {
     const lat = liveCoords.lat.toFixed(5);
     const lng = liveCoords.lng.toFixed(5);
     const mapsLink = `https://maps.google.com/?q=${lat},${lng}`;
+    const locationName = liveCoords.locationName || 'Current Live Coordinates';
+    const area = liveCoords.approximateArea ? ` (${liveCoords.approximateArea})` : '';
 
     if (alertType === 'EMERGENCY') {
-      return `🚨 SAFEGRID CRITICAL SOS from ${currentUser.name}!\n\nI need immediate assistance! Please check on me or coordinate dispatch.\n\n📍 My Live GPS: ${lat}, ${lng}\n🗺️ Google Maps: ${mapsLink}\n🛡️ Live Companion Tracker: ${guardianUrl}`;
+      return `🚨 SAFEGRID CRITICAL SOS from ${currentUser.name}!\n\nI need immediate assistance! Please verify my safety or coordinate dispatch.\n\n📍 My Location: ${locationName}${area}\n🌐 Exact GPS: ${lat}, ${lng}\n🗺️ Google Maps: ${mapsLink}\n🛡️ Live Companion Tracker: ${guardianUrl}`;
     } else if (alertType === 'CHECKIN') {
-      return `⚠️ SAFEGRID Welfare Alert from ${currentUser.name}.\n\nScheduled safety check-in window exceeded without response. Please call or verify my well-being.\n\n📍 Last Known Area: ${lat}, ${lng}\n🗺️ Google Maps: ${mapsLink}\n🛡️ Companion Console: ${guardianUrl}`;
+      return `⚠️ SAFEGRID Welfare Alert from ${currentUser.name}.\n\nScheduled safety check-in window exceeded without response. Please call or verify my well-being.\n\n📍 Last Known Area: ${locationName}${area}\n🌐 Exact GPS: ${lat}, ${lng}\n🗺️ Google Maps: ${mapsLink}\n🛡️ Companion Console: ${guardianUrl}`;
     } else {
-      return `🚶 SAFEGRID Journey Alert from ${currentUser.name}.\n\nCommute is overdue or off expected schedule. Tracking active.\n\n📍 Live Coordinates: ${lat}, ${lng}\n🗺️ Google Maps: ${mapsLink}\n🛡️ Live Tracking: ${guardianUrl}`;
+      return `🚶 SAFEGRID Journey Alert from ${currentUser.name}.\n\nCommute is overdue or off expected schedule. Tracking active.\n\n📍 Current Location: ${locationName}${area}\n🌐 Exact GPS: ${lat}, ${lng}\n🗺️ Google Maps: ${mapsLink}\n🛡️ Live Tracking: ${guardianUrl}`;
     }
   };
 
@@ -183,6 +200,77 @@ export const ConnectFriendModal: React.FC = () => {
 
         {/* Modal Body */}
         <div className="p-5 overflow-y-auto space-y-5 text-slate-200">
+          {/* Active GPS & Telemetry Sync Banner */}
+          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3.5 space-y-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center shrink-0">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-white">Transmitted Telemetry Location</span>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${
+                      liveCoords.isRealGps 
+                        ? 'bg-emerald-950 text-emerald-400 border-emerald-500/40' 
+                        : 'bg-blue-950 text-blue-400 border-blue-500/40'
+                    }`}>
+                      {liveCoords.isRealGps ? 'LIVE DEVICE SENSOR' : 'PRESET / SYNCHRONIZED'}
+                    </span>
+                  </div>
+                  <p className="text-xs font-medium text-slate-300">
+                    {liveCoords.locationName || 'Live Coordinates'} {liveCoords.approximateArea && `• ${liveCoords.approximateArea}`}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => refreshLiveGps()}
+                disabled={isLocatingGps}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors self-start sm:self-auto shrink-0"
+                title="Query browser device GPS sensor"
+              >
+                <RotateCw className={`w-3.5 h-3.5 text-rose-400 ${isLocatingGps ? 'animate-spin' : ''}`} />
+                <span>{isLocatingGps ? 'Detecting GPS...' : 'Acquire Device GPS'}</span>
+              </button>
+            </div>
+
+            {/* Coordinates & Alignment Note */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-900 text-xs">
+              <div className="flex items-center gap-2 font-mono text-[11px] text-slate-400">
+                <Compass className="w-3.5 h-3.5 text-blue-400" />
+                <span>{formatCoordinates(liveCoords.lat, liveCoords.lng)}</span>
+                <span className="text-slate-600">({liveCoords.lat.toFixed(5)}, {liveCoords.lng.toFixed(5)})</span>
+              </div>
+              <span className="text-[11px] text-emerald-400 font-medium">
+                ✓ Google Maps link &amp; Companion screen match 100%
+              </span>
+            </div>
+
+            {/* Quick Switch Test Cities */}
+            <div className="pt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+              <span className="text-slate-400 font-medium mr-1">Switch Test Location:</span>
+              {LOCATION_PRESETS.slice(1, 6).map((preset) => {
+                const isSelected = Math.abs(liveCoords.lat - preset.coords.lat) < 0.05 && Math.abs(liveCoords.lng - preset.coords.lng) < 0.05;
+                return (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    onClick={() => setCustomLocation(preset.coords)}
+                    className={`px-2 py-0.5 rounded-lg border text-[11px] transition-all ${
+                      isSelected
+                        ? 'bg-rose-950 border-rose-500 text-white font-bold'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+                    }`}
+                  >
+                    {preset.name.split(' (')[0]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {activeTab === 'sms' ? (
             <div className="space-y-4">
               {/* Recipient Selection */}
