@@ -13,7 +13,8 @@ import {
   Activity, 
   Lock,
   GitMerge,
-  Search
+  Search,
+  Download
 } from 'lucide-react';
 
 export const AdminCommandCenter: React.FC = () => {
@@ -24,6 +25,26 @@ export const AdminCommandCenter: React.FC = () => {
   const attentionCount = incidents.filter(i => i.state === 'ATTENTION').length;
   const resolvedCount = incidents.filter(i => i.status === 'RESOLVED').length;
   const respondersOnline = responders.filter(r => r.isAvailable).length;
+
+  const exportAuditTrail = () => {
+    fetch('/api/audit-logs')
+      .then(r => r.json())
+      .then(data => {
+        const exportData = {
+          exportedAt: new Date().toISOString(),
+          systemVersion: 'SAFEGRID 2.4.0',
+          incidents,
+          auditLogs: data.auditLogs || []
+        };
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `safegrid-audit-trail-${Date.now()}.json`;
+        a.click();
+      })
+      .catch(() => {});
+  };
 
   const filteredIncidents = incidents.filter(inc => {
     if (filterType === 'ALL') return true;
@@ -51,6 +72,14 @@ export const AdminCommandCenter: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={exportAuditTrail}
+            className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition-colors"
+            title="Download immutable audit trail and event logs"
+          >
+            <Download className="w-3.5 h-3.5 text-blue-400" />
+            <span>Export Audit Trail (.json)</span>
+          </button>
           <span className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-emerald-950/80 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span>Dispatch Engine Online</span>

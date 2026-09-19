@@ -32,8 +32,8 @@ import {
 
 interface SafeGridContextType {
   // App view & identity
-  viewMode: 'MOBILE' | 'WEB' | 'API_CONSOLE';
-  setViewMode: (mode: 'MOBILE' | 'WEB' | 'API_CONSOLE') => void;
+  viewMode: 'MOBILE' | 'WEB' | 'API_CONSOLE' | 'GUARDIAN';
+  setViewMode: (mode: 'MOBILE' | 'WEB' | 'API_CONSOLE' | 'GUARDIAN') => void;
   currentUser: UserProfile;
   setCurrentUser: (user: UserProfile) => void;
   updateCurrentUserProfile: (updates: Partial<UserProfile>) => void;
@@ -41,6 +41,8 @@ interface SafeGridContextType {
   personas: UserProfile[];
   isOnboardingOpen: boolean;
   setIsOnboardingOpen: (open: boolean) => void;
+  isConnectFriendModalOpen: boolean;
+  setIsConnectFriendModalOpen: (open: boolean) => void;
 
   // Core Safety State Machine
   safetyState: SafetyState;
@@ -92,6 +94,7 @@ interface SafeGridContextType {
   isSOSCountdownActive: boolean;
   sosCountdownRemaining: number;
   triggerSOS: () => void;
+  triggerEmergencyIncident: (type: Incident['type'], reason: string) => void;
   cancelSOS: () => void;
 
   // Attention Verification
@@ -128,7 +131,18 @@ interface SafeGridContextType {
 const SafeGridContext = createContext<SafeGridContextType | undefined>(undefined);
 
 export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [viewMode, setViewMode] = useState<'MOBILE' | 'WEB' | 'API_CONSOLE'>('MOBILE');
+  const [viewMode, setViewMode] = useState<'MOBILE' | 'WEB' | 'API_CONSOLE' | 'GUARDIAN'>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('role') === 'guardian' || params.get('role') === 'friend' || params.get('view') === 'guardian') {
+        return 'GUARDIAN';
+      }
+      if (params.get('view') === 'web') return 'WEB';
+      if (params.get('view') === 'api') return 'API_CONSOLE';
+    }
+    return 'MOBILE';
+  });
+  const [isConnectFriendModalOpen, setIsConnectFriendModalOpen] = useState(false);
   const [personas, setPersonas] = useState<UserProfile[]>(INITIAL_PERSONAS);
   const [currentUser, setCurrentUser] = useState<UserProfile>(INITIAL_PERSONAS[0]); // Sarah
   const [safetyState, setSafetyState] = useState<SafetyState>('SAFE');
@@ -342,6 +356,39 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   }, [currentUser]);
 
+  // Sync initial state from server.ts
+  useEffect(() => {
+    fetch('/api/contacts')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.contacts) && data.contacts.length > 0) {
+          setContacts(data.contacts);
+        }
+      })
+      .catch(() => {});
+
+    fetch('/api/schedules')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.schedules) && data.schedules.length > 0) {
+          setCheckins(data.schedules);
+        }
+      })
+      .catch(() => {});
+
+    fetch('/api/state')
+      .then(res => res.json())
+      .then(state => {
+        if (state && state.safetyState) {
+          setSafetyState(state.safetyState);
+          if (state.incident) {
+            setActiveIncident(state.incident);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // SOS Countdown Timer
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -404,18 +451,46 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
       approxLocation: contactData.approxLocation || 'Nearby Residence',
     };
     setContacts(prev => [...prev, newContact]);
+
+    fetch('/api/contacts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(contactData)
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success && data.contacts) {
+        setContacts(data.contacts);
+      }
+    })
+    .catch(() => {});
   };
 
   const updateContact = (id: string, updates: Partial<SafetyContact>) => {
     setContacts(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    fetch(`/api/contacts/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    }).catch(() => {});
   };
 
   const toggleContactPermission = (id: string, permission: 'canVerifyWelfare' | 'canReceiveSOS' | 'canTrackLiveJourney') => {
+    const contact = contacts.find(c => c.id === id);
+    if (contact) {
+      const updatedVal = !contact[permission];
+      fetch(`/api/contacts/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [permission]: updatedVal })
+      }).catch(() => {});
+    }
     setContacts(prev => prev.map(c => c.id === id ? { ...c, [permission]: !c[permission] } : c));
   };
 
   const deleteContact = (id: string) => {
     setContacts(prev => prev.filter(c => c.id !== id));
+    fetch(`/api/contacts/${id}`, { method: 'DELETE' }).catch(() => {});
   };
 
   // Check-ins Management & User Inputs
@@ -426,14 +501,33 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
       isCompletedToday: false,
     };
     setCheckins(prev => [...prev, newSchedule]);
+
+    fetch('/api/schedules', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(checkInData)
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success && data.schedules) {
+        setCheckins(data.schedules);
+      }
+    })
+    .catch(() => {});
   };
 
   const updateCheckIn = (id: string, updates: Partial<CheckInSchedule>) => {
     setCheckins(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    fetch(`/api/schedules/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    }).catch(() => {});
   };
 
   const deleteCheckIn = (id: string) => {
     setCheckins(prev => prev.filter(c => c.id !== id));
+    fetch(`/api/schedules/${id}`, { method: 'DELETE' }).catch(() => {});
   };
 
   const confirmCheckIn = (id: string) => {
@@ -675,6 +769,13 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
   const cancelSOS = () => {
     setIsSOSCountdownActive(false);
     setSosCountdownRemaining(10);
+    if (activeIncident) {
+      fetch(`/api/incidents/${activeIncident.id}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'SOS aborted during countdown' })
+      }).catch(() => {});
+    }
   };
 
   const triggerEmergencyIncident = (type: Incident['type'], reason: string) => {
@@ -794,6 +895,20 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   // Responder Lifecycle
   const responderUpdateStatus = (incidentId: string, newStatus: IncidentStatus) => {
+    if (newStatus === 'RESOLVED') {
+      fetch(`/api/incidents/${incidentId}/resolve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: 'Community incident resolved on site', responderName: activeResponder.name })
+      }).catch(() => {});
+    } else {
+      fetch(`/api/responders/${activeResponder.id}/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ incidentId })
+      }).catch(() => {});
+    }
+
     setIncidents(prev => prev.map(inc => {
       if (inc.id === incidentId) {
         const updatedEvents = [
@@ -822,6 +937,12 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
   };
 
   const reassignResponder = (incidentId: string) => {
+    fetch(`/api/responders/${activeResponder.id}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ incidentId })
+    }).catch(() => {});
+
     const nextResponder = responders.find(r => r.id !== 'resp_anita') || responders[1];
     setIncidents(prev => prev.map(inc => {
       if (inc.id === incidentId) {
@@ -916,6 +1037,8 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
         personas,
         isOnboardingOpen,
         setIsOnboardingOpen,
+        isConnectFriendModalOpen,
+        setIsConnectFriendModalOpen,
         safetyState,
         setSafetyState,
         activeIncident,
@@ -949,6 +1072,7 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
         isSOSCountdownActive,
         sosCountdownRemaining,
         triggerSOS,
+        triggerEmergencyIncident,
         cancelSOS,
         verifySafeFromAttention,
         escalateFromAttentionToEmergency,

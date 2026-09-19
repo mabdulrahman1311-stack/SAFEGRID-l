@@ -13,7 +13,8 @@ import {
   FileText, 
   RotateCcw,
   Users,
-  Terminal
+  Terminal,
+  Radio
 } from 'lucide-react';
 
 import { PWAInstallButton } from '../pwa/PWAInstallButton';
@@ -31,6 +32,7 @@ export const Header: React.FC<Props> = ({ onOpenJuryModal, onOpenScenarioModal }
     setCurrentUser,
     personas,
     setIsOnboardingOpen,
+    setIsConnectFriendModalOpen,
     isOnline,
     toggleOnlineStatus,
     offlineQueue,
@@ -108,6 +110,20 @@ export const Header: React.FC<Props> = ({ onOpenJuryModal, onOpenScenarioModal }
             <Terminal className="w-3.5 h-3.5 text-purple-300" />
             <span className="hidden sm:inline">REST APIs</span>
             <span className="sm:hidden">APIs</span>
+          </button>
+          <button
+            id="view-mode-guardian"
+            onClick={() => setViewMode('GUARDIAN')}
+            title="Friend's Phone Live Receiver Screen"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              viewMode === 'GUARDIAN'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <Radio className="w-3.5 h-3.5 text-blue-300" />
+            <span className="hidden md:inline">Friend&apos;s Phone</span>
+            <span className="md:hidden">Friend</span>
           </button>
         </div>
 
@@ -219,6 +235,18 @@ export const Header: React.FC<Props> = ({ onOpenJuryModal, onOpenScenarioModal }
 
           {/* PWA / Android APK Packager */}
           <PWAInstallButton />
+
+          {/* Connect Friend's Phone Action */}
+          <button
+            id="btn-connect-friend"
+            onClick={() => setIsConnectFriendModalOpen(true)}
+            title="Connect your friend's phone to receive emergency alerts"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-xs shadow-md transition-all active:scale-95"
+          >
+            <Smartphone className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Connect Friend&apos;s Phone</span>
+            <span className="sm:hidden">Friend</span>
+          </button>
 
           {/* Scenario Runner Modal Button */}
           <button

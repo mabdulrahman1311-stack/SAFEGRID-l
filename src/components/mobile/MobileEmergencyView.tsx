@@ -7,10 +7,11 @@ import {
   MapPin, 
   CheckCircle, 
   Clock, 
-  XCircle,
-  AlertTriangle,
-  Lock,
-  ChevronRight
+  XCircle, 
+  AlertTriangle, 
+  Lock, 
+  ChevronRight,
+  Smartphone
 } from 'lucide-react';
 
 export const MobileEmergencyView: React.FC = () => {
@@ -20,7 +21,8 @@ export const MobileEmergencyView: React.FC = () => {
     responders, 
     setSafetyState, 
     responderUpdateStatus,
-    gpsPrecision 
+    gpsPrecision,
+    setIsConnectFriendModalOpen
   } = useSafeGrid();
 
   if (!activeIncident) return null;
@@ -111,6 +113,29 @@ export const MobileEmergencyView: React.FC = () => {
             <span className="text-[9px] font-medium text-slate-400 mt-1">Resolved</span>
           </div>
         </div>
+      </div>
+
+      {/* Direct SOS to Friend's Phone */}
+      <div className="bg-amber-950/40 border border-amber-500/40 rounded-2xl p-3.5 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+            <Smartphone className="w-4 h-4 text-amber-400" />
+            <span>Send Emergency Request to Friend&apos;s Phone</span>
+          </span>
+          <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30 font-bold">
+            LIVE DISPATCH
+          </span>
+        </div>
+        <p className="text-[11px] text-slate-300 leading-relaxed">
+          Prove to your friend that it actually works: transmit this incident with exact GPS coordinates and live map link directly to their phone via native SMS, WhatsApp, or instant QR code!
+        </p>
+        <button
+          onClick={() => setIsConnectFriendModalOpen(true)}
+          className="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
+        >
+          <Smartphone className="w-4 h-4" />
+          <span>TRANSMIT SOS TO FRIEND&apos;S PHONE NOW</span>
+        </button>
       </div>
 
       {/* Assigned Community Responder Card */}

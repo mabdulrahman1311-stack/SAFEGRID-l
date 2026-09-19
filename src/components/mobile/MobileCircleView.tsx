@@ -33,7 +33,8 @@ export const MobileCircleView: React.FC = () => {
     setVicinityRadiusKm, 
     vicinityStatus,
     simulateOverdueJourney,
-    triggerSOS
+    triggerSOS,
+    setIsConnectFriendModalOpen
   } = useSafeGrid();
 
   const [showAddModal, setShowAddModal] = useState(false);
@@ -122,13 +123,40 @@ export const MobileCircleView: React.FC = () => {
             Safety Circle &amp; Proximity
           </h2>
         </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setIsConnectFriendModalOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-bold text-xs shadow-md transition-all"
+            title="Connect your friend's phone to receive emergency alerts"
+          >
+            <span>📱 Connect Phone</span>
+          </button>
+          <button
+            id="btn-open-add-contact-modal"
+            onClick={handleOpenAdd}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-950/60 transition-all"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Contact</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Connect Friend Phone Quick Test Banner */}
+      <div className="p-3 bg-gradient-to-r from-amber-950/50 to-rose-950/50 rounded-2xl border border-amber-500/30 flex items-center justify-between gap-3 text-xs">
+        <div>
+          <p className="font-bold text-white flex items-center gap-1.5">
+            <span>📱 Show emergency request to a friend</span>
+          </p>
+          <p className="text-[11px] text-slate-300">
+            Pair your friend&apos;s phone via QR code or send a real SOS via SMS / WhatsApp.
+          </p>
+        </div>
         <button
-          id="btn-open-add-contact-modal"
-          onClick={handleOpenAdd}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-950/60 transition-all"
+          onClick={() => setIsConnectFriendModalOpen(true)}
+          className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] shrink-0 shadow-md transition-all active:scale-95"
         >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Add Contact</span>
+          Connect Now
         </button>
       </div>
 

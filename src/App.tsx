@@ -22,10 +22,12 @@ import { MasterBlueprintModal } from './components/modals/MasterBlueprintModal';
 import { ScenarioRunnerModal } from './components/modals/ScenarioRunnerModal';
 import { QuickTestConsole } from './components/quicktest/QuickTestConsole';
 import { PersonTypeOnboardingModal } from './components/onboarding/PersonTypeOnboardingModal';
-import { Smartphone, Monitor, ShieldCheck, Activity, Users } from 'lucide-react';
+import { GuardianCompanionView } from './components/guardian/GuardianCompanionView';
+import { ConnectFriendModal } from './components/modals/ConnectFriendModal';
+import { Smartphone, Monitor, ShieldCheck, Activity, Users, Radio } from 'lucide-react';
 
 const AppContent: React.FC = () => {
-  const { viewMode, setViewMode, currentUser, safetyState } = useSafeGrid();
+  const { viewMode, setViewMode, currentUser, safetyState, setIsConnectFriendModalOpen } = useSafeGrid();
   const [activeMobileTab, setActiveMobileTab] = useState<'home' | 'journey' | 'checkin' | 'circle' | 'timeline'>('home');
   const [activeWebTab, setActiveWebTab] = useState<'citizen' | 'responder' | 'admin'>('citizen');
   
@@ -49,17 +51,36 @@ const AppContent: React.FC = () => {
 
       {/* Main Content Area based on View Mode */}
       <main className="flex-1 flex flex-col">
-        {viewMode === 'MOBILE' ? (
+        {viewMode === 'GUARDIAN' ? (
+          /* Live Friend / Guardian Companion Console */
+          <div className="flex-1 flex flex-col">
+            <GuardianCompanionView />
+          </div>
+        ) : viewMode === 'MOBILE' ? (
           /* Mobile App View in authentic device frame */
           <div className="flex-1 flex flex-col items-center justify-center relative">
             {/* Context Sub-bar above phone */}
-            <div className="pt-4 flex items-center gap-3 text-xs text-slate-400">
+            <div className="pt-4 flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs text-slate-400 px-4">
               <span className="flex items-center gap-1.5 font-semibold text-slate-300">
                 <Smartphone className="w-4 h-4 text-rose-400" />
                 Mobile Prototype View
               </span>
               <span>•</span>
               <span>Persona: <strong className="text-white">{currentUser.name}</strong></span>
+              <span>•</span>
+              <button
+                onClick={() => setIsConnectFriendModalOpen(true)}
+                className="text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 bg-amber-950/60 px-2 py-0.5 rounded-lg border border-amber-500/30 transition-colors"
+              >
+                <span>📱 Connect Friend&apos;s Phone</span>
+              </button>
+              <span>•</span>
+              <button
+                onClick={() => setViewMode('GUARDIAN')}
+                className="text-blue-400 hover:text-blue-300 underline font-medium transition-colors"
+              >
+                Guardian Screen
+              </button>
               <span>•</span>
               <button
                 onClick={() => setViewMode('WEB')}
@@ -158,6 +179,7 @@ const AppContent: React.FC = () => {
 
       {/* Global Modals & Dialogs */}
       <PersonTypeOnboardingModal />
+      <ConnectFriendModal />
       <MobileSOSModal />
       <MobileAttentionModal />
       <MasterBlueprintModal isOpen={isJuryModalOpen} onClose={() => setIsJuryModalOpen(false)} />

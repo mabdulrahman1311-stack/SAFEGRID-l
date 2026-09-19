@@ -13,7 +13,8 @@ import {
   ArrowRight,
   BatteryLow,
   WifiOff,
-  AlertTriangle
+  AlertTriangle,
+  Smartphone
 } from 'lucide-react';
 
 interface Props {
@@ -33,7 +34,8 @@ export const MobileHome: React.FC<Props> = ({ onNavigate }) => {
     activeSafetySession,
     toggleSafetySession,
     simulateMissedCheckIn,
-    simulateOverdueJourney
+    simulateOverdueJourney,
+    setIsConnectFriendModalOpen
   } = useSafeGrid();
 
   const nextCheckIn = checkins.find(c => !c.isCompletedToday) || checkins[0];
@@ -113,6 +115,27 @@ export const MobileHome: React.FC<Props> = ({ onNavigate }) => {
         <p className="text-[11px] text-slate-400 mt-2">
           Press for immediate emergency dispatch with false-alarm countdown
         </p>
+      </div>
+
+      {/* Connect Friend's Phone Action Card */}
+      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/70 via-slate-900 to-slate-900 border border-amber-500/40 shadow-lg shadow-amber-950/30 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center justify-center shrink-0">
+            <Smartphone className="w-5 h-5 animate-pulse" />
+          </div>
+          <div>
+            <h3 className="font-bold text-xs text-white">Connect Friend&apos;s Phone</h3>
+            <p className="text-[11px] text-slate-300">
+              Send a real emergency alert to your friend via SMS, WhatsApp, or live QR pairing!
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => setIsConnectFriendModalOpen(true)}
+          className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shrink-0 shadow-md transition-all active:scale-95"
+        >
+          Connect
+        </button>
       </div>
 
       {/* 4 Core Action Cards */}
