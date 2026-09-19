@@ -1,0 +1,6 @@
+{
+  "name": "SAFEGRID - Community Safety & Welfare Platform",
+  "description": "Multi-layer emergency-response and welfare platform combining manual SOS, scheduled check-ins, safe journeys, and progressive escalation.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

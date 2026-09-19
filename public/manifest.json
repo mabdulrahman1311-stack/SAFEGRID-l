@@ -1,0 +1,49 @@
+{
+  "id": "/",
+  "name": "SAFEGRID Community Safety",
+  "short_name": "SafeGrid",
+  "description": "Multi-layer emergency-response and welfare platform combining manual SOS, scheduled check-ins, safe journeys, and progressive escalation.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#020617",
+  "theme_color": "#0f172a",
+  "categories": ["utilities", "safety", "lifestyle"],
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Emergency SOS",
+      "short_name": "SOS",
+      "description": "Immediately trigger emergency SOS alert",
+      "url": "/?action=sos",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Quick Check-in",
+      "short_name": "Check-in",
+      "description": "Confirm safety welfare status",
+      "url": "/?action=checkin",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}

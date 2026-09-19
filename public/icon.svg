@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f43f5e" />
+      <stop offset="50%" stop-color="#e11d48" />
+      <stop offset="100%" stop-color="#be123c" />
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+  </defs>
+  <!-- Background with safe zone border -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  
+  <!-- Subtle grid lines -->
+  <path d="M96 160h320M96 256h320M96 352h320M160 96v320M256 96v320M352 96v320" stroke="#1e293b" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 8" opacity="0.6"/>
+  
+  <!-- Outer glowing shield ring -->
+  <path d="M256 90c76 0 138 52 138 116 0 102-94 186-138 216-44-30-138-114-138-216 0-64 62-116 138-116z" fill="none" stroke="#f43f5e" stroke-width="6" opacity="0.3"/>
+
+  <!-- Main Shield Body -->
+  <path d="M256 108c66 0 120 45 120 102 0 90-82 164-120 190-38-26-120-100-120-190 0-57 54-102 120-102z" fill="url(#shieldGrad)" />
+
+  <!-- Inner Protective Grid Nodes -->
+  <!-- Center Heartbeat / Pulse -->
+  <path d="M190 256h30l18-36 36 72 24-48 14 12h30" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Safe Location Pin Dot -->
+  <circle cx="256" cy="180" r="14" fill="#ffffff" />
+  <circle cx="256" cy="180" r="24" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.5"/>
+</svg>

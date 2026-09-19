@@ -1,0 +1,20 @@
+{
+  "packageId": "com.safegrid.welfare.app",
+  "host": "ais-pre-peu4tshc5e6wyukzmajes6-12645040952.asia-southeast1.run.app",
+  "name": "SAFEGRID Community Safety",
+  "launcherName": "SafeGrid",
+  "display": "standalone",
+  "themeColor": "#0F172A",
+  "navigationColor": "#020617",
+  "backgroundColor": "#020617",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "/pwa-512x512.png",
+  "maskableIconUrl": "/pwa-maskable-512x512.png",
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "signing": {
+    "scheme": "v2"
+  },
+  "generatorApp": "bubblewrap-cli"
+}

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="shieldGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f43f5e" />
+      <stop offset="50%" stop-color="#e11d48" />
+      <stop offset="100%" stop-color="#be123c" />
+    </linearGradient>
+  </defs>
+  <!-- Full-bleed background without border radius for maskable android framing -->
+  <rect width="512" height="512" fill="url(#bgGradMask)" />
+  
+  <!-- Subtle grid lines within safe zone -->
+  <path d="M120 180h272M120 256h272M120 332h272M180 120v272M256 120v272M332 120v272" stroke="#1e293b" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 8" opacity="0.6"/>
+  
+  <!-- Main Shield Body centered safely inside central 75% circle -->
+  <path d="M256 136c54 0 98 37 98 83 0 74-67 134-98 156-31-22-98-82-98-156 0-46 44-83 98-83z" fill="url(#shieldGradMask)" />
+
+  <!-- Inner Protective Grid Nodes -->
+  <!-- Center Heartbeat / Pulse -->
+  <path d="M200 256h24l16-30 30 60 20-40 12 10h24" fill="none" stroke="#ffffff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Safe Location Pin Dot -->
+  <circle cx="256" cy="196" r="11" fill="#ffffff" />
+  <circle cx="256" cy="196" r="20" fill="none" stroke="#ffffff" stroke-width="2.5" opacity="0.5"/>
+</svg>
