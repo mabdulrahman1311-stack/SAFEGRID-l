@@ -1,1219 +1,484 @@
-# 🛡️ SAFEGRID
+# SAFEGRID — Smart Community Safety Platform
 
-### Smart, Connected & Proactive Personal Safety Platform
+<div align="center">
 
-> **From a simple SOS button to a complete safety-response ecosystem.**
+![SAFEGRID Banner](public/pwa-512x512.png)
 
-SAFEGRID is a smart personal safety platform designed to help users **prepare for emergencies, trigger safety signals, share critical information, involve trusted contacts, monitor journeys, and manage safety incidents through a structured response workflow.**
+**Don't just wait for an SOS. Recognize when safety changes.**
 
-The system combines **personal safety configuration, Safety Circles, Safe Journey monitoring, location services, emergency escalation, and responder workflows** into one centralized platform.
+[![TypeScript](https://img.shields.io/badge/TypeScript-7.0-blue)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-19-61dafb)](https://reactjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-8.3-646cff)](https://vitejs.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8)](https://tailwindcss.com/)
+[![Capacitor](https://img.shields.io/badge/Capacitor-8.5-119efe)](https://capacitorjs.com/)
+[![PWA](https://img.shields.io/badge/PWA-Ready-5A0FC8)](https://web.dev/progressive-web-apps/)
 
----
-
-## 🚨 The Problem
-
-In an emergency, the biggest challenge is often not only **calling for help**.
-
-A person may:
-
-* Have very little time to react.
-* Be travelling alone.
-* Be unable to explain their location clearly.
-* Need their family or trusted contacts to know what is happening.
-* Need their journey to be monitored.
-* Require different levels of emergency response.
-* Lose internet connectivity.
-* Need responders to understand the situation quickly.
-
-Traditional safety applications often focus mainly on:
-
-> **"Press SOS."**
-
-But an emergency does not end after pressing SOS.
-
-There needs to be a complete process for:
-
-**Detection → Verification → Escalation → Response → Resolution**
+</div>
 
 ---
 
-# 💡 Our Solution
+## Overview
 
-SAFEGRID converts an emergency signal into a structured **Safety Event**.
+SAFEGRID is a **multi-layer community safety and emergency response platform** that monitors welfare across four independent safety layers:
 
-Instead of treating SOS as an isolated notification, the platform creates a safety workflow around the event.
+1. **Manual SOS** — a 10-second countdown panic button with responder dispatch
+2. **Safe Journey** — GPS-tracked commutes with deviation detection and ETA monitoring
+3. **Scheduled Check-ins** — automated welfare signals with missed-check-in escalation
+4. **Safety Circle** — trusted contact vicinity monitoring and proximity-based dispatch
 
-### Core Workflow
+When a safety signal is overdue or an emergency occurs, SAFEGRID progressively escalates from **SAFE → ATTENTION → EMERGENCY** and dispatches the nearest verified responder while alerting the Safety Circle.
 
-```text
-                 USER
-                  │
-                  ▼
-            SAFETY SIGNAL
-                  │
-                  ▼
-             VERIFICATION
-                  │
-                  ▼
-             SAFETY STATE
-                  │
-                  ▼
-            RISK ASSESSMENT
-                  │
-                  ▼
-              ESCALATION
-                  │
-                  ▼
-        SAFETY CIRCLE / RESPONDER
-                  │
-                  ▼
-           LIVE MONITORING
-                  │
-                  ▼
-              RESOLUTION
+---
+
+## The Problem
+
+Every 4 minutes, someone in India experiences a street safety incident. Existing safety apps provide reactive tools (panic buttons) but miss the gradual deterioration of safety that precedes most emergencies — overdue commutes, missed welfare checks, route deviations, and prolonged silence.
+
+---
+
+## The Solution
+
+SAFEGRID detects **changes in safety state** before they become crises:
+
+```
+USER
+ ↓
+SAFETY SIGNAL (SOS / Check-in / Journey / Session)
+ ↓
+VERIFICATION (10s countdown / Attention dialog / Grace period)
+ ↓
+SAFETY STATE (SAFE → ATTENTION → EMERGENCY)
+ ↓
+RISK ASSESSMENT (Vicinity check: who is closest?)
+ ↓
+ESCALATION (Safety Circle alert → Emergency Services → Responder)
+ ↓
+RESPONDER ASSIGNED (Matched by proximity + specialization)
+ ↓
+MONITORING (Live location + incident timeline)
+ ↓
+RESOLUTION (Confirmed safe / Responder on scene)
 ```
 
 ---
 
-# 🎯 Project Objective
+## Features
 
-SAFEGRID aims to create a centralized digital safety platform that can:
+### 👤 Personalized Safety Onboarding
+Five safety profiles automatically configure the app:
+- **Solo Woman / Commuter** → Women Helpline 1091 priority, transit harassment protection
+- **Senior Citizen** → Ambulance 108, medication reminders, fall detection check-ins
+- **Guardian (Parent)** → Childline 1098, school bus tracking, curfew monitoring
+- **Student** → Police 112, campus patrol, buddy tracking
+- **Verified Responder** → Receive dispatches, accept/reject incidents, update status
 
-* Improve emergency communication.
-* Provide contextual safety information.
-* Connect users with trusted contacts.
-* Support safe journeys.
-* Provide location-based assistance.
-* Track safety-event states.
-* Create a structured escalation workflow.
-* Support future integration with authorized emergency responders.
+### 🆘 Emergency SOS
+- 10-second cancellation countdown (prevents false alarms)
+- Real incident created with event timeline
+- Vicinity check: if no Safety Circle contact is within radius → auto-escalate to emergency services
+- Nearest verified responder auto-assigned
+- Full incident lifecycle: CREATED → ASSIGNED → EN_ROUTE → ARRIVED → RESOLVED
 
----
+### 🗺️ Safe Journey Tracker
+- Start journeys with origin, destination, transport mode
+- Custom ETA or auto-calculated from distance
+- Safety-scored route presets with CCTV coverage info
+- ETA extension buttons to prevent false alarms during delays
+- Route deviation detection (>300m off corridor → ATTENTION state)
+- Live GPS progress tracking with SVG map visualization
+- Share with Safety Circle (live journey updates)
 
-# ✨ Key Features
+### ✅ Scheduled Check-ins
+- Configurable daily welfare signals (Morning, Afternoon, Evening)
+- Per-type categories: WELFARE, MEDICATION, CURFEW, TRANSIT
+- Missed check-in → ATTENTION state → escalation to Emergency if no response
+- Senior mode: large, accessible "I'M OK" button
 
-## 🚨 1. Smart SOS
+### 👥 Safety Circle
+- Add up to 10+ trusted contacts (family, friends, neighbors, doctors)
+- Per-contact permission flags: canVerifyWelfare, canReceiveSOS, canTrackLiveJourney
+- Configurable vicinity radius (1km – 10km)
+- Distance-based escalation: if no circle contact is within radius → auto-dispatch emergency services
+- Import contacts from device / manually add
 
-Users can trigger an emergency safety signal.
+### 📡 Guardian / Friend's Phone View
+- Separate companion screen for friends/family monitoring the user
+- Real-time state sync via `/api/state` polling (3s intervals)
+- Shows live location, safety state, active incident
+- Friend can trigger "I'm responding" status
 
-The system can associate the signal with relevant information such as:
+### 🖥️ Web Portals
+- **Citizen Web Dashboard**: Safety status, journey monitor, check-in manager, Safety Circle
+- **Verified Responder Console**: Active incident list, accept dispatch, update status (EN_ROUTE, ARRIVED, RESOLVED)
+- **City Operations Command Center**: All incidents, system stats, responder fleet status, audit trail export
 
-* User identity
-* Current location
-* Emergency configuration
-* Safety Circle
-* Current journey
-* Emergency agency configuration
-* Nearby safety context
-
-The objective is to provide **context instead of only an alert**.
-
----
-
-# 👤 2. Personalized Safety Onboarding
-
-SAFEGRID allows users to configure their safety experience according to their situation.
-
-Example user categories:
-
-* 👩 Women / Solo Commuters
-* 👴 Senior Citizens
-* 🎓 Students
-* 🌙 Late-Shift Workers
-* 👤 General Citizens
-
-During setup, users can configure information such as:
-
-* Emergency preferences
-* Emergency medical notes
-* Emergency agency
-* Safety vicinity radius
-* Trusted contacts
-
-This makes the system adaptable to different safety requirements.
+### 🔧 REST API Console
+- Interactive test console with all 20+ API endpoints
+- Live request/response inspector
+- Pre-built test scenarios
 
 ---
 
-# 👥 3. Safety Circle
-
-The **Safety Circle** is a trusted group of people who can be involved during a safety event.
-
-Users can manage:
-
-* Family members
-* Friends
-* Guardians
-* Trusted contacts
-
-Each contact can contain information such as:
-
-```text
-Name
-Relationship
-Contact Information
-Area / Distance
-Permissions
-Emergency Access
-Vicinity Radius
-```
-
-Users can:
-
-* Add contacts
-* Edit contacts
-* Remove contacts
-* Configure permissions
-
----
-
-# 🗺️ 4. Safe Journey
-
-SAFEGRID provides a dedicated **Safe Journey** workflow.
-
-Users can define:
-
-```text
-Origin
-   ↓
-Destination
-   ↓
-Route
-   ↓
-Journey Monitoring
-   ↓
-Safety Status
-```
-
-Example destinations:
-
-* 🏠 Home
-* 🏥 Hospital
-* 🎓 College
-* 🏫 School
-* 🚓 Police Station
-* 🏢 Workplace
-* 🏘️ Residential Area
-
-The journey provides additional context if a safety event occurs.
-
----
-
-# 📍 5. Location & Maps
-
-SAFEGRID integrates map functionality to provide location-aware safety features.
-
-Maps can be used for:
-
-* Current location
-* Journey routes
-* Destination selection
-* Location sharing
-* Nearby safety context
-* Emergency response context
-
-The Maps API provides the underlying location and mapping functionality.
-
----
-
-# 🔔 6. Emergency Escalation
-
-A safety event can move through different stages.
-
-Example:
-
-```text
-SIGNAL
-  ↓
-VERIFY
-  ↓
-WARNING
-  ↓
-ALERT
-  ↓
-EMERGENCY
-  ↓
-RESPONDER ASSIGNED
-  ↓
-RESOLVED
-```
-
-This allows the platform to represent the **current state of an emergency**.
-
----
-
-# 📊 7. Safety Dashboard
-
-The dashboard provides a centralized view of safety information.
-
-It can display:
-
-* Active safety events
-* User status
-* Journey status
-* Emergency alerts
-* Location information
-* Responder information
-* Resolution status
-
-This creates a unified safety-management interface.
-
----
-
-# 🧠 8. Safety State Management
-
-SAFEGRID uses states to represent what is happening during a safety event.
-
-Example:
-
-```text
-SAFE
- ↓
-WARNING
- ↓
-ALERT
- ↓
-EMERGENCY
- ↓
-RESPONDER ASSIGNED
- ↓
-RESOLVED
-```
-
-This state-based approach makes the system easier to monitor, extend, and integrate with future response systems.
-
----
-
-# 🔐 9. Authentication
-
-SAFEGRID uses **Firebase Authentication** for user authentication.
-
-Authentication is responsible for:
-
-* User registration
-* User login
-* Identity management
-* Session management
-* Protected access
-
----
-
-# 🗄️ 10. Cloud Firestore Database
-
-Cloud Firestore is used to store application data.
-
-Example data includes:
-
-* User profiles
-* Safety preferences
-* Safety Circle contacts
-* Journey information
-* Safety events
-* Emergency settings
-* Responder information
-* Event status
-
----
-
-# 🔌 11. Backend APIs
-
-The backend provides an API layer between the frontend and application services.
-
-Example API structure:
-
-```text
-POST   /register
-POST   /login
-
-POST   /reports
-GET    /reports
-GET    /reports/:id
-
-PUT    /reports/:id/status
-PUT    /reports/:id/assign
-```
-
-The exact API implementation can evolve as the prototype develops.
-
----
-
-# 🏗️ System Architecture
-
-```text
-                         ┌─────────────────────┐
-                         │        USER         │
-                         │   Mobile / Browser  │
-                         └──────────┬──────────┘
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │       FLUTTER       │
-                         │      FRONTEND       │
-                         │                     │
-                         │ UI + Screens        │
-                         │ State + Services    │
-                         └──────────┬──────────┘
-                                    │
-                              API / HTTPS
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │     NODE.JS +       │
-                         │      EXPRESS       │
-                         │      BACKEND       │
-                         │                     │
-                         │ Routes              │
-                         │ Controllers         │
-                         │ Validation          │
-                         │ Business Logic      │
-                         └──────┬──────┬───────┘
-                                │      │
-                    ┌───────────┘      └──────────────┐
-                    ▼                                  ▼
-          ┌──────────────────┐              ┌──────────────────┐
-          │     FIREBASE     │              │     MAPS API     │
-          │                  │              │                  │
-          │ Authentication   │              │ Maps             │
-          │ Firestore        │              │ Location         │
-          │                  │              │ Routes           │
-          └──────────────────┘              └──────────────────┘
-```
-
----
-
-# 🛠️ Technology Stack
-
-| Technology                  | Role                                   |
-| --------------------------- | -------------------------------------- |
-| **Flutter**                 | Cross-platform frontend                |
-| **Flutter Web**             | Browser-based hackathon prototype      |
-| **Dart**                    | Flutter programming language           |
-| **Node.js**                 | Backend runtime                        |
-| **Express.js**              | REST API framework                     |
-| **Firebase Authentication** | Authentication                         |
-| **Cloud Firestore**         | Cloud database                         |
-| **Maps API**                | Maps, location and route functionality |
-| **Git**                     | Version control                        |
-| **GitHub**                  | Repository and collaboration           |
-
----
-
-# 🎨 Frontend
-
-The frontend is developed using **Flutter**.
-
-Flutter allows the application interface to be developed from a common codebase.
-
-### Frontend responsibilities
-
-```text
-UI
- ↓
-User Interaction
- ↓
-Form Validation
- ↓
-State Management
- ↓
-API / Firebase Services
- ↓
-Display Response
-```
-
-The frontend handles:
-
-* Login
-* Registration
-* User onboarding
-* Safety configuration
-* Safety Circle
-* Safe Journey
-* SOS
-* Safety dashboard
-* Emergency status
-* Maps
-* Notifications/status information
-
----
-
-# ⚙️ Backend
-
-The backend uses:
-
-**Node.js + Express.js**
-
-The backend provides the application API layer.
-
-### Backend workflow
-
-```text
-Frontend Request
-       ↓
-Express Route
-       ↓
-Controller
-       ↓
-Validation
-       ↓
-Business Logic
-       ↓
-Database / External Service
-       ↓
-API Response
-       ↓
-Frontend
-```
-
-This separates the user interface from backend application logic.
-
----
-
-# 🔥 Firebase
-
-Firebase provides important cloud services.
-
-## Firebase Authentication
-
-Used for:
-
-```text
-Registration
-Login
-Identity
-Authentication
-```
-
-## Cloud Firestore
-
-Used for:
-
-```text
-Users
-Safety Circles
-Journeys
-Safety Events
-Emergency Settings
-Application Data
-```
-
----
-
-# 🗺️ Maps API
-
-The Maps API provides location-related functionality.
-
-Potential use cases include:
-
-* Displaying maps
-* Selecting locations
-* Showing routes
-* Displaying current position
-* Calculating journey context
-* Supporting emergency location sharing
-
----
-
-# 🔄 Complete Application Workflow
-
-```text
-┌───────────────────────┐
-│ 1. USER REGISTRATION  │
-└───────────┬───────────┘
-            ↓
-┌───────────────────────┐
-│ 2. USER AUTHENTICATES │
-└───────────┬───────────┘
-            ↓
-┌───────────────────────┐
-│ 3. SAFETY ONBOARDING  │
-└───────────┬───────────┘
-            ↓
-┌───────────────────────┐
-│ 4. CONFIGURE SAFETY   │
-│    PREFERENCES        │
-└───────────┬───────────┘
-            ↓
-┌───────────────────────┐
-│ 5. ADD SAFETY CIRCLE  │
-└───────────┬───────────┘
-            ↓
-┌───────────────────────┐
-│ 6. START SAFE JOURNEY │
-└───────────┬───────────┘
-            ↓
-┌───────────────────────┐
-│ 7. LOCATION CONTEXT   │
-└───────────┬───────────┘
-            ↓
-┌───────────────────────┐
-│ 8. SAFETY SIGNAL      │
-│    OCCURS             │
-└───────────┬───────────┘
-            ↓
-┌───────────────────────┐
-│ 9. SAFETY EVENT       │
-│    CREATED            │
-└───────────┬───────────┘
-            ↓
-┌───────────────────────┐
-│ 10. VERIFICATION      │
-└───────────┬───────────┘
-            ↓
-┌───────────────────────┐
-│ 11. SAFETY STATE      │
-│     UPDATED           │
-└───────────┬───────────┘
-            ↓
-┌───────────────────────┐
-│ 12. ESCALATION        │
-└───────────┬───────────┘
-            ↓
-┌───────────────────────┐
-│ 13. SAFETY CIRCLE /   │
-│     RESPONDER         │
-└───────────┬───────────┘
-            ↓
-┌───────────────────────┐
-│ 14. MONITORING        │
-└───────────┬───────────┘
-            ↓
-┌───────────────────────┐
-│ 15. RESOLUTION        │
-└───────────────────────┘
-```
-
----
-
-# 🔗 Frontend → Backend → Database Flow
-
-Example:
-
-```text
-User
- ↓
-Flutter UI
- ↓
-API Request
- ↓
-Express.js
- ↓
-Route
- ↓
-Controller
- ↓
-Validation
- ↓
-Firestore
- ↓
-Database Response
- ↓
-Express.js
- ↓
-JSON Response
- ↓
-Flutter
- ↓
-Updated UI
-```
-
-This architecture allows each layer to have a specific responsibility.
-
----
-
-# 📦 Example Project Structure
-
-```text
-SAFEGRID/
-│
-├── frontend/
-│   │
-│   ├── lib/
-│   │   ├── screens/
-│   │   ├── widgets/
-│   │   ├── models/
-│   │   ├── services/
-│   │   ├── controllers/
-│   │   └── main.dart
-│   │
-│   ├── assets/
-│   ├── web/
-│   └── pubspec.yaml
-│
-├── backend/
-│   │
-│   ├── routes/
-│   ├── controllers/
-│   ├── middleware/
-│   ├── services/
-│   ├── models/
-│   ├── config/
-│   ├── server.js
-│   └── package.json
-│
-├── docs/
-│   ├── architecture/
-│   ├── diagrams/
-│   └── screenshots/
-│
-├── .gitignore
-├── README.md
-└── LICENSE
-```
-
----
-
-# 🗃️ Example Database Structure
-
-A simplified Firestore structure can look like:
-
-```text
-users/
-   userId/
-      name
-      email
-      phone
-      userType
-      emergencySettings
-
-safetyCircles/
-   circleId/
-      userId
-      contactName
-      relationship
-      permissions
-      vicinityRadius
-
-journeys/
-   journeyId/
-      userId
-      origin
-      destination
-      route
-      status
-
-safetyEvents/
-   eventId/
-      userId
-      eventType
-      location
-      timestamp
-      safetyState
-      status
-      responderId
-```
-
----
-
-# 🔒 Security
-
-Because SAFEGRID deals with safety and location-related information, security is an important part of the system.
-
-The application should follow principles such as:
-
-* Authentication before accessing private data
-* User-specific authorization
-* Protected API endpoints
-* Firestore security rules
-* HTTPS communication
-* Controlled Safety Circle access
-* Minimum necessary data sharing
-* Secure environment variables
-* No API secrets inside GitHub
-
-### ⚠️ Never commit:
-
-```text
-.env
-Firebase private keys
-Service account credentials
-Passwords
-Secret API keys
-Private tokens
-```
-
----
-
-# 🌐 Low-Connectivity Considerations
-
-A real-world safety application cannot depend entirely on internet connectivity.
-
-A production version of SAFEGRID should support fallback mechanisms such as:
-
-* Network availability detection
-* Cached emergency contacts
-* Last-known location
-* Retry mechanisms
-* SMS/cellular fallback
-* Offline emergency information
-* Local emergency configuration
-
-The current hackathon prototype focuses primarily on demonstrating the **digital safety workflow and architecture**.
-
----
-
-# 🧪 Testing
-
-Important test cases include:
-
-### Authentication
-
-* Registration
-* Login
-* Invalid credentials
-* Session handling
-
-### Safety Circle
-
-* Add contact
-* Edit contact
-* Delete contact
-* Permission handling
-
-### Safe Journey
-
-* Origin selection
-* Destination selection
-* Route display
-* Journey start
-* Journey status
-
-### Emergency
-
-* SOS activation
-* Safety event creation
-* State transition
-* Escalation
-* Resolution
+## Technology Stack
+
+### Frontend
+| Technology | Version | Purpose |
+|---|---|---|
+| React | 19.0 | UI framework |
+| TypeScript | 7.0 | Type safety |
+| Vite | 8.3 | Build tool + dev server |
+| Tailwind CSS | v4 | Utility-first styling |
+| Lucide React | 0.546 | Icon system |
+| Motion | 12.x | Animations |
+| vite-plugin-pwa | 1.3 | PWA + service worker |
 
 ### Backend
+| Technology | Version | Purpose |
+|---|---|---|
+| Express | 4.21 | REST API server |
+| Node.js / tsx | 4.21 | TypeScript execution |
+| esbuild | 0.25 | Server bundle |
 
-* API request validation
-* Database operations
-* Error handling
-* Invalid requests
-* Authentication checks
-
-### Network
-
-* Slow connection
-* Network failure
-* API failure
-* Retry behavior
-
----
-
-# 🚀 Future Scope
-
-SAFEGRID can be extended beyond the current hackathon prototype.
-
-## 🤖 AI-Based Risk Detection
-
-Future versions could analyze contextual signals and identify potential safety risks.
+### Mobile / Android
+| Technology | Version | Purpose |
+|---|---|---|
+| Capacitor | 8.5 | Web-to-native bridge |
+| @capacitor/android | 8.5 | Android WebView wrapper |
+| @capacitor/geolocation | 8.2 | Native GPS access |
+| @capacitor/status-bar | 8.0 | Android status bar theming |
+| @capacitor/splash-screen | 8.0 | App launch splash |
 
 ---
 
-## 📡 Low-Network Emergency Communication
+## Architecture
 
-Future versions could support alternative communication methods when internet connectivity is unavailable.
-
----
-
-## 📞 Authorized Emergency-Service Integration
-
-The platform could integrate with authorized emergency agencies where appropriate.
-
-Such integration would require official APIs, permissions, authentication, and operational agreements.
-
----
-
-## 🧠 Anomaly Detection
-
-Future versions could detect unusual journey patterns such as:
-
-* Unexpected route deviation
-* Unexpected long stops
-* Journey abandonment
-* Unusual movement patterns
-
----
-
-## 🎙️ Voice-Based Emergency Activation
-
-Users could potentially trigger safety workflows through voice commands.
-
----
-
-## ⌚ Wearable Integration
-
-Future versions could connect with:
-
-* Smartwatches
-* Wearable safety devices
-* Health/safety sensors
-
----
-
-## 🏙️ Smart-City Integration
-
-SAFEGRID could eventually connect authorized safety systems with:
-
-```text
-Citizens
-   ↓
-Safety Platform
-   ↓
-Authorized Responders
-   ↓
-Institutions
-   ↓
-Smart-City Infrastructure
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      SAFEGRID CLIENT                         │
+│                                                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│  │  Mobile View │  │   Web View   │  │  Guardian View   │  │
+│  │ (Phone Frame)│  │ (Dashboard)  │  │ (Friend Monitor) │  │
+│  └──────┬───────┘  └──────┬───────┘  └───────┬──────────┘  │
+│         │                 │                    │             │
+│  ┌──────▼─────────────────▼────────────────────▼──────────┐ │
+│  │            SafeGridContext (React Context API)          │ │
+│  │  - Safety State Machine (SAFE/ATTENTION/EMERGENCY)     │ │
+│  │  - Journey Management    - Check-in Scheduling         │ │
+│  │  - SOS Countdown         - Responder Dispatch          │ │
+│  │  - Safety Circle         - Notification Queue          │ │
+│  │  - Offline Queue         - GPS Location                │ │
+│  └─────────────────────────┬──────────────────────────────┘ │
+│                             │ fetch()                        │
+└─────────────────────────────┼───────────────────────────────┘
+                              │
+┌─────────────────────────────▼───────────────────────────────┐
+│                    EXPRESS BACKEND (server.ts)               │
+│                                                              │
+│  POST /api/sos              GET/POST /api/contacts          │
+│  POST /api/journey/start    GET/POST /api/schedules         │
+│  POST /api/journey/arrived  GET/POST /api/incidents         │
+│  POST /api/checkin/complete PUT  /api/incidents/:id         │
+│  POST /api/escalate         GET  /api/state                 │
+│  GET  /api/audit-logs       POST /api/reset                 │
+│                                                              │
+│              In-memory store (prototype)                     │
+│    (swap for PostgreSQL/Firebase/MongoDB in production)      │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-# 🧩 Challenges & Solutions
+## Database Structure
 
-| Challenge                              | SAFEGRID Approach                  |
-| -------------------------------------- | ---------------------------------- |
-| User may be unable to explain location | Location context                   |
-| Family may not know about an emergency | Safety Circle                      |
-| SOS alone lacks context                | Safety Event                       |
-| Emergencies change over time           | Safety States                      |
-| Users travel alone                     | Safe Journey                       |
-| Different users have different needs   | Personalized onboarding            |
-| Internet may fail                      | Future offline/fallback mechanisms |
-| Emergency response needs structure     | Escalation workflow                |
-| Multiple systems need communication    | API-based architecture             |
+The backend uses **in-memory data stores** (suitable for hackathon demo). For production, each store maps to a database collection:
+
+| Store | Fields | Notes |
+|---|---|---|
+| `contacts[]` | id, name, relationship, phone, permissions, distanceKm | Safety Circle contacts |
+| `schedules[]` | id, label, scheduledTime, gracePeriod, category | Check-in schedules |
+| `incidents[]` | id, type, state, status, location, events[], responder | Emergency events |
+| `responders[]` | id, name, badgeId, distanceKm, isAvailable | Verified responders |
+| `safetyState` | 'SAFE' \| 'ATTENTION' \| 'EMERGENCY' | Global safety state |
+| `location` | lat, lng, locationName, accuracy | Last known GPS |
+| `journey` | id, origin, destination, ETA, status, coords | Active journey |
 
 ---
 
-# 📈 Scalability
+## Safety States
 
-SAFEGRID is designed with separate application layers:
-
-```text
-Frontend
-   ↓
-Backend
-   ↓
-Authentication
-   ↓
-Database
-   ↓
-External APIs
 ```
-
-This separation makes it possible to extend the platform in the future.
-
-Potential expansion:
-
-```text
-Individual User
-       ↓
-Family / Safety Circle
-       ↓
-Educational Institutions
-       ↓
-Organizations
-       ↓
-Authorized Responders
-       ↓
-Smart-City Ecosystem
+SAFE ─────────────────────────────────────────────────────┐
+ │                                                          │
+ │ [Missed check-in]                                        │
+ │ [Journey overdue]       ┌── [User verifies safe] ────────┤
+ │ [Route deviation]       │                                │
+ ▼                         │                                │
+ATTENTION ─────────────────┘                               │
+ │                                                          │
+ │ [SOS pressed]                                            │
+ │ [No response to attention]   ┌── [Responder resolves] ──┤
+ │ [Escalation timeout]         │                           │
+ ▼                              │                           │
+EMERGENCY ─────────────────────┘                           │
+ │                                                          │
+ │ [Responder resolved]                                     │
+ └──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-# 💻 Installation
+## Setup Instructions
 
-## Prerequisites
+### Prerequisites
+- Node.js ≥ 18
+- npm ≥ 10
 
-Install the following:
-
-* Flutter SDK
-* Dart
-* Node.js
-* npm
-* Git
-* VS Code
-* Firebase project
-* Maps API configuration
-
-Verify installations:
+### Development Server
 
 ```bash
-flutter --version
-dart --version
-node --version
-npm --version
-git --version
-```
+git clone <repo-url>
+cd SAFEGRID-l
 
----
-
-# 📥 Clone the Repository
-
-```bash
-git clone <YOUR_GITHUB_REPOSITORY_URL>
-
-cd SAFEGRID
-```
-
----
-
-# 🎨 Frontend Setup
-
-```bash
-cd frontend
-```
-
-Install Flutter dependencies:
-
-```bash
-flutter pub get
-```
-
-Run the application:
-
-```bash
-flutter run
-```
-
-For Chrome/Web:
-
-```bash
-flutter run -d chrome
-```
-
----
-
-# ⚙️ Backend Setup
-
-Open another terminal:
-
-```bash
-cd backend
-```
-
-Install dependencies:
-
-```bash
+# Install dependencies (--legacy-peer-deps is required due to esbuild version conflict)
 npm install
+
+# Start development server (serves both frontend and Express API)
+npm run dev
+
+# Open http://localhost:5173
 ```
 
-Start the backend:
+> **Note:** The `.npmrc` file in this repo already sets `legacy-peer-deps=true` so `npm install` should work without the flag.
+
+### Environment Variables
+
+Copy `.env.example` to `.env` and fill in your values:
 
 ```bash
-npm start
+cp .env.example .env
 ```
 
-For development:
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `GEMINI_API_KEY` | Optional | — | For AI-powered features |
+| `APP_URL` | Optional | `http://localhost:5173` | Public app URL |
+| `PORT` | Optional | `5173` | Express server port |
 
+### Production Build
+
+```bash
+npm run build
+# Outputs to: dist/
+
+# Start production server
+npm run start
+```
+
+---
+
+## Web Application
+
+### Running Locally
 ```bash
 npm run dev
+# Opens at http://localhost:5173
 ```
+
+### View Modes (accessible via top navigation)
+| Mode | Description |
+|---|---|
+| **Mobile App** | Authentic iPhone-frame view of the mobile experience |
+| **Web App** | Full desktop/tablet web portal |
+| **REST APIs** | Interactive API console with all endpoints |
+| **Friend's Phone** | Guardian companion monitoring screen |
+
+### PWA Installation
+The app is PWA-ready and installable:
+1. Open in Chrome
+2. Click the install prompt in the address bar (or the install button in the app)
+3. SAFEGRID installs as a standalone app
 
 ---
 
-# 🔑 Environment Configuration
+## Android APK
 
-Create a `.env` file inside the backend directory.
+### Prerequisites
+- [Android Studio](https://developer.android.com/studio) installed
+- Android SDK (API level 22+)
+- JDK 17+
 
-Example:
-
-```env
-PORT=5000
-
-FIREBASE_PROJECT_ID=your_project_id
-FIREBASE_CLIENT_EMAIL=your_client_email
-FIREBASE_PRIVATE_KEY=your_private_key
-
-MAPS_API_KEY=your_maps_api_key
-```
-
-Do not upload the actual `.env` file to GitHub.
-
-Add it to `.gitignore`:
-
-```text
-.env
-```
-
----
-
-# 🔄 Development Workflow
-
-```text
-Create Feature
-     ↓
-Develop Frontend
-     ↓
-Develop API
-     ↓
-Connect Database
-     ↓
-Test
-     ↓
-Fix Errors
-     ↓
-Git Commit
-     ↓
-Git Push
-```
-
----
-
-# 🌿 Git Workflow
-
-Example:
+### Build Steps
 
 ```bash
-git status
+# Step 1: Build the web app
+npm run build:web
 
-git add .
+# Step 2: Sync to Android project
+npx cap sync android
 
-git commit -m "Add safety journey module"
+# Step 3: Open in Android Studio
+npx cap open android
 
-git push
+# In Android Studio:
+# Build → Build Bundle(s) / APK(s) → Build APK(s)
 ```
 
-For feature branches:
+### APK Location
+After a successful Gradle build:
+```
+android/app/build/outputs/apk/debug/app-debug.apk
+```
 
+### Command Line APK Build (without Android Studio)
 ```bash
-git checkout -b feature/safe-journey
+cd android
+.\gradlew.bat assembleDebug  # Windows
+./gradlew assembleDebug      # Mac/Linux
 ```
 
----
-
-# 📸 Screenshots
-
-Add screenshots of the application here.
-
-Example:
-
-```text
-docs/screenshots/
-├── login.png
-├── onboarding.png
-├── dashboard.png
-├── safety-circle.png
-├── safe-journey.png
-├── sos.png
-└── emergency-dashboard.png
+### Installing on Android Phone
+```bash
+# Enable "Developer Options" and "USB Debugging" on your Android phone
+adb install android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Then add them to this README using:
+Or simply copy the APK file to your phone and install it.
 
-```markdown
-![Dashboard](docs/screenshots/dashboard.png)
+### App Configuration
+| Setting | Value |
+|---|---|
+| App Name | SAFEGRID |
+| Package ID | com.safegrid.app |
+| Min SDK | Android 5.1 (API 22) |
+| Target SDK | Android 14 (API 34) |
+| Web Engine | Capacitor (Chrome WebView) |
+
+---
+
+## Hackathon Demo Flow
+
+Follow this sequence for a complete demonstration:
+
+```
+1. OPEN APP → Onboarding modal → Select "Solo Woman / Commuter"
+2. HOME → Note safety status SAFE, Safety Circle (3 contacts), SOS button
+3. JOURNEY TAB → Start journey with "Main Avenue Safe Corridor" preset
+4. JOURNEY → Tap "Simulate Route Deviation" → ATTENTION state activates
+5. Resolve deviation → Journey returns to SAFE
+6. CHECK-IN TAB → Tap "I'm OK" → confirmed
+7. Tap "Simulate Missed Check-in" → ATTENTION state with incident
+8. Attention modal → Escalate → EMERGENCY state
+9. EMERGENCY VIEW → See incident timeline, responder assigned, ETA 3 mins
+10. Tap "SAFE ARRIVAL" / "Resolve" → incident resolved, SAFE state restored
+11. Switch to Web App → Responder Console → Citizen Portal
+12. Switch to Friend's Phone view → Real-time monitoring
+13. Switch to City Ops → See all incidents, responder fleet, export audit trail
 ```
 
----
-
-# 🎥 Demo Flow
-
-For a hackathon demonstration, the recommended flow is:
-
-```text
-1. Open SAFEGRID
-       ↓
-2. Register / Login
-       ↓
-3. Complete Safety Onboarding
-       ↓
-4. Configure Emergency Settings
-       ↓
-5. Add Safety Circle
-       ↓
-6. Start Safe Journey
-       ↓
-7. Show Map / Location
-       ↓
-8. Trigger Safety Signal
-       ↓
-9. Show Safety Event
-       ↓
-10. Show Verification
-       ↓
-11. Show Safety State
-       ↓
-12. Show Escalation
-       ↓
-13. Show Safety Circle / Responder
-       ↓
-14. Resolve Event
-```
+### Persona Switch (Header → Avatar Dropdown)
+| Persona | Demonstrates |
+|---|---|
+| Sarah Jenkins | Solo commuter / SOLO_WOMAN |
+| David Vance | Senior check-ins / medication |
+| Maya & Aarav | Guardian / child safety |
+| Dr. Anita Roy | Verified Responder portal |
+| SafeGrid Control | Admin Command Center |
 
 ---
 
-# 🏆 Hackathon Value
+## API Reference
 
-SAFEGRID demonstrates more than a single emergency button.
+### Safety Events
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/sos` | Trigger emergency SOS |
+| POST | `/api/escalate` | Escalate from ATTENTION |
+| GET | `/api/state` | Current safety state |
+| POST | `/api/reset` | Reset all state |
 
-The prototype combines:
+### Journeys
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/journey/start` | Start safe journey |
+| POST | `/api/journey/arrived` | Confirm safe arrival |
+| POST | `/api/journey/extend` | Extend ETA |
+| POST | `/api/journey/missed` | Mark journey overdue |
 
-```text
-Personal Safety
-      +
-Trusted Contacts
-      +
-Journey Monitoring
-      +
-Location Services
-      +
-Emergency Events
-      +
-Safety States
-      +
-Escalation
-      +
-Responder Workflow
-```
+### Contacts & Check-ins
+| Method | Endpoint | Description |
+|---|---|---|
+| GET/POST | `/api/contacts` | Safety Circle contacts |
+| PUT | `/api/contacts/:id` | Update contact |
+| DELETE | `/api/contacts/:id` | Remove contact |
+| GET/POST | `/api/schedules` | Check-in schedules |
+| POST | `/api/checkin/complete` | Mark check-in done |
+| POST | `/api/checkin/missed` | Simulate missed |
 
-The core idea is:
-
-> **A safety signal should become an actionable safety event, not just a notification.**
-
----
-
-# 🎯 Project Vision
-
-### Make safety proactive, connected and actionable.
-
-SAFEGRID aims to create a future where personal safety systems can connect users, trusted contacts, journeys, location information and authorized response systems through one structured platform.
-
----
-
-# 👨‍💻 Team
-
-## SAFEGRID Team
-
-**Project:** SAFEGRID
-**Domain:** Social Impact / Public Safety
-**Platform:** Flutter Web / Cross-Platform Application
-
-### Team Areas
-
-| Area            | Responsibility                   |
-| --------------- | -------------------------------- |
-| 🎨 Frontend     | Flutter UI and user experience   |
-| ⚙️ Backend      | Node.js, Express and APIs        |
-| 🔥 Firebase     | Authentication and Firestore     |
-| 🗺️ Maps        | Location and route functionality |
-| 🧪 Testing      | Testing and debugging            |
-| 📊 Presentation | Documentation and demonstration  |
+### Incidents & Responders
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/incidents` | All incidents |
+| PUT | `/api/incidents/:id/status` | Update status |
+| POST | `/api/incidents/:id/resolve` | Resolve incident |
+| GET | `/api/responders` | All responders |
+| POST | `/api/responders/:id/accept` | Accept dispatch |
+| GET | `/api/audit-logs` | Export audit trail |
 
 ---
 
-# 📜 License
+## Offline & Low Connectivity
 
-This project is currently developed as a **hackathon prototype**.
+SAFEGRID handles poor connectivity gracefully:
+- Network status indicator in header (toggle simulation available)
+- Offline queue: safety actions recorded locally when offline
+- On reconnect: queued events automatically synced to backend
+- Last-known location preserved
+- Clear "Offline Mode" banner in mobile view
 
-If the project is later released as open source, add an appropriate license such as MIT, Apache 2.0, or another license suitable for the project.
+> **Note:** True offline-first requires IndexedDB + service worker background sync (marked as future scope).
 
 ---
 
-# ❤️ SAFEGRID
+## Security Notes
 
-> **Detect. Verify. Escalate. Respond. Resolve.**
+- No Firebase credentials or external API keys are required to run the prototype
+- The Gemini API key is only used for optional AI features and is never exposed to the frontend
+- All environment variables are loaded via `dotenv` on the server side
+- Frontend never receives or stores secrets
+- `.gitignore` excludes all `.env*` files (except `.env.example`)
 
-**Building a safer and more connected digital environment through technology.**
+---
 
+## Future Production Scope
+
+| Feature | Status |
+|---|---|
+| Real SMS/push notifications | 🔮 Future |
+| Firebase Authentication | 🔮 Future |
+| Firestore real-time database | 🔮 Future |
+| Google Maps tile integration | 🔮 Future |
+| Real police/emergency API integration | 🔮 Future |
+| ML-based route safety scoring | 🔮 Future |
+| True offline IndexedDB sync | 🔮 Future |
+| Multi-tenancy / organization accounts | 🔮 Future |
+| Wearable integration (smartwatch SOS) | 🔮 Future |
+
+---
+
+## Team
+
+Built for the **SAFEGRID Hackathon** prototype demonstration.
+
+---
+
+## Screenshots
+
+> Use the **Mobile App** view mode and **Web App** view mode to see the full UI.
+> Key screens: SOS countdown, Emergency incident view, Safe Journey map, Guardian monitoring.
+
+---
+
+## License
+
+Apache-2.0 — see individual file headers for copyright notices.

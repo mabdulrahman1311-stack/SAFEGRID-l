@@ -25,7 +25,7 @@ import {
   AlertOctagon
 } from 'lucide-react';
 import { calculateDistanceKm, calculateEtaMinutes, formatEtaTimestamp } from '../../utils/geolocation';
-import { SafeGridMap } from '../common/SafeGridMap';
+import { LiveMap } from '../common/LiveMap';
 
 export const MobileJourneyView: React.FC = () => {
   const { 
@@ -56,6 +56,11 @@ export const MobileJourneyView: React.FC = () => {
   const [useCustomEta, setUseCustomEta] = useState(false);
   const [customEtaMinutes, setCustomEtaMinutes] = useState(25);
   const [selectedPresetIndex, setSelectedPresetIndex] = useState(0);
+  // Live destination coordinates (resolved via Nominatim or preset)
+  const [mapDestCoords, setMapDestCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapDestName, setMapDestName] = useState('');
+  // Updated live user coords fed back from map
+  const [mapUserCoords, setMapUserCoords] = useState(liveCoords);
 
   // Safety Corridor Presets with Safety Scores
   const ROUTE_PRESETS = [
@@ -94,8 +99,9 @@ export const MobileJourneyView: React.FC = () => {
     }
   ];
 
-  const destLat = liveCoords.lat + (transportMode === 'DRIVING' ? 0.045 : transportMode === 'TRANSIT' ? 0.03 : 0.012);
-  const destLng = liveCoords.lng + (transportMode === 'DRIVING' ? 0.035 : transportMode === 'TRANSIT' ? 0.025 : 0.010);
+  // Use map-geocoded destination if set, else fall back to offset estimate
+  const destLat = mapDestCoords?.lat ?? (liveCoords.lat + (transportMode === 'DRIVING' ? 0.045 : transportMode === 'TRANSIT' ? 0.03 : 0.012));
+  const destLng = mapDestCoords?.lng ?? (liveCoords.lng + (transportMode === 'DRIVING' ? 0.035 : transportMode === 'TRANSIT' ? 0.025 : 0.010));
   const autoCalculatedDistance = calculateDistanceKm(liveCoords.lat, liveCoords.lng, destLat, destLng);
   const autoEtaMinutes = calculateEtaMinutes(autoCalculatedDistance, transportMode);
 
@@ -113,13 +119,20 @@ export const MobileJourneyView: React.FC = () => {
   const handleStart = () => {
     startJourneyWithInputs({
       origin: origin.trim() || 'Current Active GPS Location',
-      destination: destination.trim() || 'Home Residence',
+      destination: (mapDestName || destination).trim() || 'Home Residence',
       transportMode,
       notes: customNotes.trim() || undefined,
       customEtaMinutes: activeEta,
       originCoords: { lat: liveCoords.lat, lng: liveCoords.lng },
       destinationCoords: { lat: destLat, lng: destLng },
     });
+  };
+
+  // When the map's geocoder resolves a destination, update the form field too
+  const handleMapDestChange = (coords: { lat: number; lng: number }, name: string) => {
+    setMapDestCoords(coords);
+    setMapDestName(name);
+    setDestination(name.split(',')[0].trim());
   };
 
   const handleSimulateMovement = () => {
@@ -176,26 +189,38 @@ export const MobileJourneyView: React.FC = () => {
         </span>
       </div>
 
-      {/* Embedded Real-Time Interactive Map */}
+      {/* ── Live Leaflet Map with Real Routing ───────────────────────────── */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-xs px-1">
           <span className="text-slate-400 font-semibold flex items-center gap-1.5">
             <MapPin className="w-3.5 h-3.5 text-rose-400" />
-            <span>Interactive Live Corridor Map</span>
+            <span>Live Map · OpenStreetMap + OSRM Routing</span>
           </span>
           <span className="text-[10px] text-slate-500 font-mono">
-            {liveCoords.lat.toFixed(4)}°N, {Math.abs(liveCoords.lng).toFixed(4)}°W (±{gpsPrecision}m)
+            {liveCoords.lat.toFixed(4)}°N {Math.abs(liveCoords.lng).toFixed(4)}°E ±{gpsPrecision}m
           </span>
         </div>
-        <SafeGridMap
-          userCoords={liveCoords}
+
+        {/* Destination search bar for the map */}
+        <LiveMap
+          userCoords={mapUserCoords}
+          destinationCoords={mapDestCoords ?? (journey?.destinationCoords ?? undefined)}
+          destinationName={mapDestName || journey?.destination}
           contacts={contacts}
           responders={responders}
           activeIncident={activeIncident}
           journey={journey}
           vicinityRadiusKm={vicinityRadiusKm}
-          height={240}
-          isDeviationSimulated={isDeviated}
+          height="420px"
+          showSearchBar={!journey || journey.status === 'COMPLETED'}
+          showControls
+          transportMode={
+            transportMode === 'WALKING' ? 'walking'
+            : transportMode === 'DRIVING' ? 'driving'
+            : 'driving'
+          }
+          onDestinationChange={handleMapDestChange}
+          onUserLocationUpdate={(c) => setMapUserCoords(c)}
         />
       </div>
 

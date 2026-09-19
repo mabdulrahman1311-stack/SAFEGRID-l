@@ -16,7 +16,7 @@ import {
   Search,
   Download
 } from 'lucide-react';
-import { SafeGridMap } from '../common/SafeGridMap';
+import { LiveMap } from '../common/LiveMap';
 
 export const AdminCommandCenter: React.FC = () => {
   const { 
@@ -186,16 +186,18 @@ export const AdminCommandCenter: React.FC = () => {
             </div>
           </div>
 
-          {/* Interactive Community Map */}
+          {/* Live Community Map */}
           <div className="w-full rounded-2xl overflow-hidden border border-slate-800">
-            <SafeGridMap
+            <LiveMap
               userCoords={liveCoords}
               contacts={contacts}
               responders={responders}
               activeIncident={activeIncident}
               journey={journey}
               vicinityRadiusKm={vicinityRadiusKm}
-              height={270}
+              height="300px"
+              showSearchBar={false}
+              showControls
             />
           </div>
 

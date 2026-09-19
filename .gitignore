@@ -6,3 +6,10 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Android / Capacitor generated artifacts
+android/
+ios/
+.capacitor/
+*.apk
+*.aab
