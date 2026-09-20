@@ -115,6 +115,24 @@ export interface Journey {
 // ==========================================
 // SEED IN-MEMORY STORE
 // ==========================================
+export interface AppUser {
+  id: string;
+  email: string;
+  password: string;
+  name: string;
+  createdAt: string;
+}
+
+let dbUsers: AppUser[] = [
+  {
+    id: 'user_default',
+    email: 'sarah.lin@example.com',
+    password: 'password123',
+    name: 'Sarah Lin',
+    createdAt: new Date().toISOString()
+  }
+];
+
 function getNowFormatted(): string {
   return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
@@ -324,11 +342,11 @@ let currentState: ServerState = {
   },
   incident: null,
   location: {
-    latitude: 12.9716,
-    longitude: 77.5946,
-    locationName: 'Central Metro Corridor',
-    approximateArea: 'Bengaluru Central',
-    accuracy: 12,
+    latitude: 0,
+    longitude: 0,
+    locationName: 'Detecting Location...',
+    approximateArea: 'Awaiting device GPS sensor',
+    accuracy: 0,
     speed: 0,
     updatedAt: getNowFormatted()
   },
@@ -401,6 +419,57 @@ async function startServer() {
 
   app.get('/api/state', (req: Request, res: Response) => {
     res.json(currentState);
+  });
+
+  // ----------------------------------------------------
+  // AUTH ENDPOINTS (/api/auth)
+  // ----------------------------------------------------
+  app.post('/api/auth/register', (req: Request, res: Response) => {
+    const { email, password, name } = req.body || {};
+    if (!email || !password || !name) {
+      res.status(400).json({ success: false, error: 'Email, password, and name are required' });
+      return;
+    }
+    const existing = dbUsers.find(u => u.email.toLowerCase() === String(email).trim().toLowerCase());
+    if (existing) {
+      res.status(400).json({ success: false, error: 'An account with this email already exists' });
+      return;
+    }
+    const newUser: AppUser = {
+      id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      email: String(email).trim().toLowerCase(),
+      password: String(password),
+      name: String(name).trim(),
+      createdAt: new Date().toISOString()
+    };
+    dbUsers.push(newUser);
+    const token = 'token_' + newUser.id + '_' + Date.now();
+    res.json({
+      success: true,
+      token,
+      user: { id: newUser.id, email: newUser.email, name: newUser.name }
+    });
+  });
+
+  app.post('/api/auth/login', (req: Request, res: Response) => {
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      res.status(400).json({ success: false, error: 'Email and password are required' });
+      return;
+    }
+    const user = dbUsers.find(
+      u => u.email.toLowerCase() === String(email).trim().toLowerCase() && u.password === String(password)
+    );
+    if (!user) {
+      res.status(401).json({ success: false, error: 'Invalid email or password' });
+      return;
+    }
+    const token = 'token_' + user.id + '_' + Date.now();
+    res.json({
+      success: true,
+      token,
+      user: { id: user.id, email: user.email, name: user.name }
+    });
   });
 
   // ----------------------------------------------------
@@ -777,8 +846,8 @@ async function startServer() {
 
     const { latitude, longitude, locationName, approximateArea, userName, userPhone, type, notes } = req.body || {};
 
-    const effLat = typeof latitude === 'number' ? latitude : (currentState.location?.latitude ?? 12.9716);
-    const effLng = typeof longitude === 'number' ? longitude : (currentState.location?.longitude ?? 77.5946);
+    const effLat = typeof latitude === 'number' ? latitude : (currentState.location?.latitude ?? 0);
+    const effLng = typeof longitude === 'number' ? longitude : (currentState.location?.longitude ?? 0);
     const effLoc = locationName || currentState.location?.locationName || `GPS: ${effLat.toFixed(4)}, ${effLng.toFixed(4)}`;
     const effArea = approximateArea || currentState.location?.approximateArea || 'Active Telemetry Zone';
 
@@ -1054,6 +1123,60 @@ async function startServer() {
 
     logActivity('🟢 Incident marked as ASSISTED & RESOLVED. All signals normal.', 'responder');
     res.json({ success: true, message: 'Incident resolved', state: currentState });
+  });
+
+  // ----------------------------------------------------
+  // TWO-PHONE DEMO MODE SYNCHRONIZATION (Parts 9-16)
+  // ----------------------------------------------------
+  let currentDemoAlert: {
+    userName: string;
+    friendName: string;
+    reason: string;
+    batteryLevel: number | null;
+    location: string;
+    timestamp: string;
+    status: string;
+  } | null = null;
+
+  app.get('/api/demo/state', (req: Request, res: Response) => {
+    res.json({
+      success: true,
+      alert: currentDemoAlert,
+      safetyState: currentState.safetyState,
+      serverTime: getNowFormatted()
+    });
+  });
+
+  app.post('/api/demo/alert', (req: Request, res: Response) => {
+    const { userName, friendName, reason, batteryLevel, location, timestamp } = req.body || {};
+    currentDemoAlert = {
+      userName: userName || 'Alex',
+      friendName: friendName || 'Rahul',
+      reason: reason || 'Check-in missed; safety verification timeout',
+      batteryLevel: typeof batteryLevel === 'number' ? batteryLevel : 67,
+      location: location || 'College Transit Corridor',
+      timestamp: timestamp || getNowFormatted(),
+      status: 'TRUSTED_CONTACT_NOTIFIED'
+    };
+    currentState.safetyState = 'ATTENTION';
+    logActivity(`📱 [DEMO] Safety Alert dispatched to Friend (${friendName || 'Rahul'}): ${reason}`, 'escalation');
+    res.json({ success: true, alert: currentDemoAlert });
+  });
+
+  app.post('/api/demo/acknowledge', (req: Request, res: Response) => {
+    const { actor } = req.body || {};
+    if (currentDemoAlert) {
+      currentDemoAlert.status = 'ACKNOWLEDGED';
+    }
+    logActivity(`✅ [DEMO] Phone B (${actor || 'Rahul'}) acknowledged the safety alert.`, 'system');
+    res.json({ success: true, alert: currentDemoAlert });
+  });
+
+  app.post('/api/demo/resolve', (req: Request, res: Response) => {
+    currentDemoAlert = null;
+    currentState.safetyState = 'SAFE';
+    logActivity(`🟢 [DEMO] Safety event resolved.`, 'system');
+    res.json({ success: true, message: 'Demo event resolved' });
   });
 
   app.post('/api/reset', (req: Request, res: Response) => {

@@ -25,7 +25,8 @@ import {
   AlertOctagon,
   Search,
   Loader2,
-  Check
+  Check,
+  BatteryLow
 } from 'lucide-react';
 import { calculateDistanceKm, calculateEtaMinutes, formatEtaTimestamp } from '../../utils/geolocation';
 import { LiveMap, geocodeAddress, reverseGeocode } from '../common/LiveMap';
@@ -48,8 +49,14 @@ export const MobileJourneyView: React.FC = () => {
     liveCoords,
     isLocatingGps,
     refreshLiveGps,
-    gpsPrecision
+    gpsPrecision,
+    batteryInfo,
+    isOnline,
+    checkins
   } = useSafeGrid();
+
+  const availableContactsCount = contacts.filter(c => c.canReceiveSOS).length;
+  const nextCheckIn = checkins.find(c => !c.isCompletedToday) || checkins[0];
 
   // User Inputs for Journey
   const [origin, setOrigin] = useState('Central Metro Transit Hub');
@@ -314,6 +321,75 @@ export const MobileJourneyView: React.FC = () => {
         /* Active Journey Card with Live Controls */
         <div className="space-y-4">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-4">
+            {/* PART 4: REAL ACTIVE JOURNEY APPLICATION STATUS */}
+            <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-slate-800 space-y-2.5">
+              <div className="flex items-center justify-between pb-1.5 border-b border-slate-800/80">
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  Journey Active
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">Real-time Telemetry</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800/80">
+                  <span className="text-slate-400">Battery:</span>
+                  <strong className="text-white font-mono">
+                    {batteryInfo.level !== null ? `${batteryInfo.level}%` : 'Unavailable'}
+                  </strong>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800/80">
+                  <span className="text-slate-400">Location:</span>
+                  <strong className={liveCoords.isRealGps ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
+                    {liveCoords.isRealGps ? 'Available' : (liveCoords.lat !== 0 ? 'Last Known Fix' : 'Unavailable')}
+                  </strong>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800/80">
+                  <span className="text-slate-400">Network:</span>
+                  <strong className={isOnline ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
+                    {isOnline ? 'Connected' : 'Unavailable'}
+                  </strong>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800/80">
+                  <span className="text-slate-400">Trusted Contacts:</span>
+                  <strong className={availableContactsCount > 0 ? "text-purple-300 font-bold" : "text-rose-400 font-bold"}>
+                    {availableContactsCount > 0 ? `${availableContactsCount} available` : '0 available'}
+                  </strong>
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-1 text-[11px] text-slate-400">
+                <span>Next Check-in:</span>
+                <span className="font-semibold text-slate-200">
+                  {nextCheckIn ? nextCheckIn.scheduledTime : '14 min window'}
+                </span>
+              </div>
+            </div>
+
+            {/* PART 3: Low Battery Warning during Active Journey */}
+            {batteryInfo.level !== null && batteryInfo.level <= 20 && (
+              <div className="p-3 bg-amber-950/70 border border-amber-500/60 rounded-2xl flex items-start gap-2.5 text-amber-200 text-xs shadow-md">
+                <BatteryLow className="w-5 h-5 shrink-0 text-amber-400 animate-pulse mt-0.5" />
+                <div>
+                  <span className="font-bold block">Low Battery Warning ({batteryInfo.level}%)</span>
+                  <p className="text-[11px] text-amber-300/90 mt-0.5 leading-relaxed">
+                    Your battery is running low. Consider ending your journey or connecting your charger.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* PART 6: No Trusted Contact Available Warning */}
+            {availableContactsCount === 0 && (
+              <div className="p-3 bg-rose-950/60 border border-rose-500/50 rounded-2xl text-rose-200 text-xs flex items-start gap-2.5">
+                <AlertTriangle className="w-5 h-5 shrink-0 text-rose-400 mt-0.5" />
+                <div>
+                  <span className="font-bold block">No trusted contact is currently available</span>
+                  <p className="text-[11px] text-rose-300/90 mt-0.5">
+                    SafeGrid is monitoring your route. If assistance is needed, emergency dispatches will route to community responders and emergency services.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Origin & Destination summary */}
             <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-700">
               <div>

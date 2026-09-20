@@ -17,6 +17,10 @@ import {
   Smartphone
 } from 'lucide-react';
 
+import { DeviceSafetyStatus } from '../common/DeviceSafetyStatus';
+import { DemoControlPanel } from '../demo/DemoControlPanel';
+import { Sliders, Sparkles } from 'lucide-react';
+
 interface Props {
   onNavigate: (tab: 'home' | 'journey' | 'checkin' | 'circle' | 'timeline') => void;
 }
@@ -38,31 +42,58 @@ export const MobileHome: React.FC<Props> = ({ onNavigate }) => {
     setIsConnectFriendModalOpen,
     liveCoords,
     isLocatingGps,
-    refreshLiveGps
+    refreshLiveGps,
+    isDemoMode,
+    toggleDemoMode,
+    isDemoPanelOpen,
+    setIsDemoPanelOpen,
+    setIsDemoGuideOpen,
+    setIsEscalationSettingsOpen,
   } = useSafeGrid();
 
   const nextCheckIn = checkins.find(c => !c.isCompletedToday) || checkins[0];
 
   return (
     <div className="p-4 space-y-4 pb-8 animate-in fade-in">
-      {/* Offline / Low Battery Alerts */}
-      {!isOnline && (
-        <div className="p-2.5 rounded-xl bg-amber-950/70 border border-amber-500/50 text-amber-300 text-xs flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-2">
-            <WifiOff className="w-4 h-4 shrink-0 text-amber-400" />
-            <span>Offline mode. Safety events will queue locally.</span>
+      {/* DEMO MODE PRESENTATION BANNER (Parts 9, 10, 11) */}
+      {isDemoMode && (
+        <div className="p-3 rounded-2xl bg-gradient-to-r from-purple-950/90 via-slate-900 to-purple-950/90 border-2 border-purple-500/80 shadow-lg shadow-purple-950/50 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0 border border-purple-400/40">
+              <Sparkles className="w-4 h-4 animate-spin" />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-black text-white tracking-wide">DEMO MODE ACTIVE</span>
+                <span className="w-2 h-2 rounded-full bg-purple-400 animate-ping" />
+              </div>
+              <span className="text-[10px] text-purple-300 block">Phone A (Alex) ↔ Phone B (Rahul)</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => setIsDemoPanelOpen(!isDemoPanelOpen)}
+              className="px-2.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md transition-colors"
+            >
+              {isDemoPanelOpen ? 'Hide Panel' : 'Demo Panel'}
+            </button>
+            <button
+              onClick={toggleDemoMode}
+              className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-xs font-semibold"
+            >
+              Exit
+            </button>
           </div>
         </div>
       )}
 
-      {batteryLevel <= 20 && (
-        <div className="p-2.5 rounded-xl bg-rose-950/70 border border-rose-500/50 text-rose-300 text-xs flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-2">
-            <BatteryLow className="w-4 h-4 shrink-0 text-rose-400 animate-pulse" />
-            <span>Low Battery ({batteryLevel}%). Safety Circle has been notified.</span>
-          </div>
-        </div>
+      {/* Demo Panel Dropdown when toggled open */}
+      {isDemoMode && isDemoPanelOpen && (
+        <DemoControlPanel onOpenGuide={() => setIsDemoGuideOpen(true)} />
       )}
+
+      {/* Compact Device Status Component (Parts 2, 3, 18, 19, 20, 21) */}
+      <DeviceSafetyStatus />
 
       {/* Header Greeting & Safety State */}
       <div className="flex items-start justify-between">
@@ -131,25 +162,43 @@ export const MobileHome: React.FC<Props> = ({ onNavigate }) => {
         </p>
       </div>
 
-      {/* Connect Friend's Phone Action Card */}
-      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/70 via-slate-900 to-slate-900 border border-amber-500/40 shadow-lg shadow-amber-950/30 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center justify-center shrink-0">
-            <Smartphone className="w-5 h-5 animate-pulse" />
+      {/* Connect Friend's Phone & Escalation Policy Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-950/70 via-slate-900 to-slate-900 border border-amber-500/40 shadow-sm flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center justify-center shrink-0">
+              <Smartphone className="w-4 h-4 animate-pulse" />
+            </div>
+            <div>
+              <h3 className="font-bold text-xs text-white">Connect Friend&apos;s Phone</h3>
+              <p className="text-[10px] text-slate-300">Live pairing via QR or SMS link</p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-bold text-xs text-white">Connect Friend&apos;s Phone</h3>
-            <p className="text-[11px] text-slate-300">
-              Send a real emergency alert to your friend via SMS, WhatsApp, or live QR pairing!
-            </p>
-          </div>
+          <button
+            onClick={() => setIsConnectFriendModalOpen(true)}
+            className="px-2.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shrink-0 transition-all active:scale-95"
+          >
+            Connect
+          </button>
         </div>
-        <button
-          onClick={() => setIsConnectFriendModalOpen(true)}
-          className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shrink-0 shadow-md transition-all active:scale-95"
-        >
-          Connect
-        </button>
+
+        <div className="p-3 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-900 border border-slate-800 shadow-sm flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-500/40 text-purple-300 flex items-center justify-center shrink-0">
+              <Sliders className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-bold text-xs text-white">Escalation Policy</h3>
+              <p className="text-[10px] text-slate-300">Auto-escalation triggers & timer</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsEscalationSettingsOpen(true)}
+            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-purple-300 font-bold text-xs shrink-0 border border-purple-500/30 transition-all active:scale-95"
+          >
+            Settings
+          </button>
+        </div>
       </div>
 
       {/* 4 Core Action Cards */}

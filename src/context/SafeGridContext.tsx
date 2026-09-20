@@ -11,7 +11,12 @@ import {
   IncidentStatus,
   PersonType,
   EmergencyServiceType,
-  AppNotification
+  AppNotification,
+  SafetyEventStatus,
+  BatteryInfo,
+  EscalationConfig,
+  DemoConfig,
+  DemoTimelineItem
 } from '../types';
 import { 
   INITIAL_PERSONAS, 
@@ -32,6 +37,21 @@ import {
   formatCoordinates,
   LOCATION_PRESETS 
 } from '../utils/geolocation';
+import { 
+  loadProfile, 
+  saveProfile, 
+  loadContacts, 
+  saveContacts, 
+  loadCheckIns, 
+  saveCheckIns 
+} from '../services/storage';
+import { getStoredAuth } from '../services/auth';
+import { reverseGeocode } from '../services/nominatim';
+import { 
+  getRealBatteryStatus, 
+  subscribeBatteryChanges, 
+  categorizeBattery 
+} from '../services/battery';
 
 interface SafeGridContextType {
   // App view & identity
@@ -124,12 +144,42 @@ interface SafeGridContextType {
   isOnline: boolean;
   toggleOnlineStatus: () => void;
   offlineQueue: OfflineEvent[];
-  batteryLevel: number;
+  batteryLevel: number | null;
   setBatteryLevel: (level: number) => void;
+  batteryInfo: BatteryInfo;
+  isBatteryAvailable: boolean;
   gpsPrecision: number;
   toggleGpsPrecision: () => void;
   activeSafetySession: boolean;
   toggleSafetySession: () => void;
+
+  // Smart Escalation System (Parts 5, 7, 8)
+  escalationConfig: EscalationConfig;
+  updateEscalationConfig: (updates: Partial<EscalationConfig>) => void;
+  isEscalationSettingsOpen: boolean;
+  setIsEscalationSettingsOpen: (open: boolean) => void;
+  isSafetyCheckModalOpen: boolean;
+  setIsSafetyCheckModalOpen: (open: boolean) => void;
+  safetyCheckReason: string;
+  promptSafetyCheck: (reason: string) => void;
+  confirmUserSafe: () => void;
+  userNeedHelp: (reason?: string) => void;
+  cancelSafetyCheck: () => void;
+  currentSafetyEventStatus: SafetyEventStatus;
+  setCurrentSafetyEventStatus: (status: SafetyEventStatus) => void;
+
+  // Demo Mode (Parts 9, 10, 11, 12, 13, 14, 15, 16, 25)
+  isDemoMode: boolean;
+  toggleDemoMode: () => void;
+  demoConfig: DemoConfig;
+  updateDemoConfig: (updates: Partial<DemoConfig>) => void;
+  demoTimeline: DemoTimelineItem[];
+  runDemoStep: (step: 'START_JOURNEY' | 'MISS_CHECKIN' | 'NOTIFY_FRIEND' | 'FRIEND_ACKNOWLEDGE' | 'RESOLVE_SAFE') => void;
+  resetDemo: () => void;
+  isDemoGuideOpen: boolean;
+  setIsDemoGuideOpen: (open: boolean) => void;
+  isDemoPanelOpen: boolean;
+  setIsDemoPanelOpen: (open: boolean) => void;
 
   // Preset Scenario Demonstrations (Sections 73–76)
   runSeniorCheckInDemo: () => void;
@@ -157,7 +207,20 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
   });
   const [isConnectFriendModalOpen, setIsConnectFriendModalOpen] = useState(false);
   const [personas, setPersonas] = useState<UserProfile[]>(INITIAL_PERSONAS);
-  const [currentUser, setCurrentUser] = useState<UserProfile>(INITIAL_PERSONAS[0]); // Sarah
+  const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
+    const auth = getStoredAuth();
+    if (auth) {
+      const stored = loadProfile(auth.id);
+      if (stored) return stored;
+      return {
+        ...INITIAL_PERSONAS[0],
+        id: auth.id,
+        name: auth.name,
+        email: auth.email,
+      };
+    }
+    return INITIAL_PERSONAS[0];
+  });
   const [safetyState, setSafetyState] = useState<SafetyState>('SAFE');
   const [incidents, setIncidents] = useState<Incident[]>(INITIAL_INCIDENTS);
   const [activeIncident, setActiveIncident] = useState<Incident | null>(null);
@@ -172,9 +235,23 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   });
 
-  const [contacts, setContacts] = useState<SafetyContact[]>(INITIAL_CONTACTS);
+  const [contacts, setContacts] = useState<SafetyContact[]>(() => {
+    const auth = getStoredAuth();
+    if (auth) {
+      const stored = loadContacts(auth.id);
+      if (stored && stored.length > 0) return stored;
+    }
+    return INITIAL_CONTACTS;
+  });
   const [vicinityRadiusKm, setVicinityRadiusKm] = useState<number>(currentUser.vicinityRadiusKm || 3.0);
-  const [checkins, setCheckins] = useState<CheckInSchedule[]>(INITIAL_CHECKINS);
+  const [checkins, setCheckins] = useState<CheckInSchedule[]>(() => {
+    const auth = getStoredAuth();
+    if (auth) {
+      const stored = loadCheckIns(auth.id);
+      if (stored && stored.length > 0) return stored;
+    }
+    return INITIAL_CHECKINS;
+  });
   const [journey, setJourney] = useState<Journey | null>(INITIAL_JOURNEY);
 
   // In-App Safety Notifications
@@ -228,9 +305,18 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
     setNotifications([]);
   };
 
-  // Live GPS Coordinates State (checks URL parameters for paired friend tracking)
+  // Live GPS Coordinates State (checks URL parameters or cached device fix)
   const [liveCoords, setLiveCoords] = useState<GeoCoordinates>(() => {
     if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('safegrid_cached_coords');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && typeof parsed.lat === 'number' && parsed.lat !== 0) {
+            return parsed;
+          }
+        }
+      } catch {}
       try {
         const params = new URLSearchParams(window.location.search);
         const pLat = params.get('lat');
@@ -258,15 +344,14 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
         // query param parse fallback
       }
     }
-    const resolved = resolveLocationName(12.9716, 77.5946);
     return {
-      lat: 12.9716,
-      lng: 77.5946,
-      accuracy: 12,
+      lat: 0,
+      lng: 0,
+      accuracy: 0,
       speed: 0,
       timestamp: Date.now(),
-      locationName: resolved.locationName,
-      approximateArea: resolved.approximateArea,
+      locationName: 'Detecting Location...',
+      approximateArea: 'Tap to locate',
       isRealGps: false,
     };
   });
@@ -283,9 +368,95 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
   // Resilience & Edge cases
   const [isOnline, setIsOnline] = useState(true);
   const [offlineQueue, setOfflineQueue] = useState<OfflineEvent[]>([]);
-  const [batteryLevel, setBatteryLevel] = useState(currentUser.batteryLevel);
+
+  // Real Battery State (Never fake or random in Normal Mode)
+  const [batteryInfo, setBatteryInfo] = useState<BatteryInfo>({
+    level: typeof currentUser.batteryLevel === 'number' ? currentUser.batteryLevel : null,
+    isCharging: false,
+    state: categorizeBattery(currentUser.batteryLevel ?? null),
+    isAvailable: typeof currentUser.batteryLevel === 'number',
+    source: 'UNAVAILABLE',
+  });
+  const [batteryLevel, setBatteryLevel] = useState<number | null>(currentUser.batteryLevel ?? null);
+  const isBatteryAvailable = batteryInfo.level !== null;
+
   const [gpsPrecision, setGpsPrecision] = useState(18); // 18m vs 120m
   const [activeSafetySession, setActiveSafetySession] = useState(true);
+
+  // Smart Escalation Configuration (Parts 5, 7, 8)
+  const [escalationConfig, setEscalationConfig] = useState<EscalationConfig>(() => {
+    try {
+      const saved = localStorage.getItem('safegrid_escalation_config');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      enabled: true,
+      gracePeriodSeconds: 60,
+      triggers: {
+        missedCheckIn: true,
+        sosPressed: true,
+        overdueJourney: true,
+        unresponsivePrompt: true,
+      },
+      selectedContactIds: contacts.map(c => c.id),
+    };
+  });
+
+  const updateEscalationConfig = (updates: Partial<EscalationConfig>) => {
+    setEscalationConfig(prev => {
+      const updated = { ...prev, ...updates };
+      try {
+        localStorage.setItem('safegrid_escalation_config', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
+
+  const [isEscalationSettingsOpen, setIsEscalationSettingsOpen] = useState(false);
+  const [isSafetyCheckModalOpen, setIsSafetyCheckModalOpen] = useState(false);
+  const [safetyCheckReason, setSafetyCheckReason] = useState("We haven't received your check-in.");
+  const [currentSafetyEventStatus, setCurrentSafetyEventStatus] = useState<SafetyEventStatus>('NORMAL');
+
+  // Demo Mode State (Parts 9, 10, 11, 12, 13, 14, 15, 16, 25)
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('safegrid_demo_mode') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const [demoConfig, setDemoConfig] = useState<DemoConfig>(() => {
+    try {
+      const saved = localStorage.getItem('safegrid_demo_config');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      isDemoMode: false,
+      demoUserName: 'Alex',
+      demoFriendName: 'Rahul',
+      demoFriendPhone: '+91 98765 43210',
+      simulatedBatteryLevel: null,
+      simulatedNetworkOnline: true,
+      simulatedGpsAvailable: true,
+      currentEventStatus: 'NORMAL',
+      timeline: []
+    };
+  });
+
+  const [demoTimeline, setDemoTimeline] = useState<DemoTimelineItem[]>([
+    {
+      id: 'dt-init',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      title: 'Demo Session Ready',
+      description: 'Phone A (Alex) and Phone B (Rahul) connected to SafeGrid live demo channel.',
+      actor: 'System',
+      status: 'NORMAL'
+    }
+  ]);
+
+  const [isDemoGuideOpen, setIsDemoGuideOpen] = useState(false);
+  const [isDemoPanelOpen, setIsDemoPanelOpen] = useState(false);
 
   // Vicinity calculation based on current contacts & radius
   const vicinityStatus: VicinityCheckResult = evaluateSafetyCircleVicinity(
@@ -397,14 +568,29 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   };
 
-  // GPS Location Refresh using Browser API with fallback and reverse-geocoding
+  // GPS Location Refresh using Browser API with reverse-geocoding
   const refreshLiveGps = async (): Promise<GeoCoordinates> => {
     setIsLocatingGps(true);
     return new Promise<GeoCoordinates>((resolve) => {
       if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
         navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const resolved = resolveLocationName(pos.coords.latitude, pos.coords.longitude);
+          async (pos) => {
+            let locName = '';
+            let locArea = '';
+            try {
+              const geo = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
+              if (geo) {
+                locName = geo.city || geo.displayName.split(',')[0];
+                locArea = [geo.city, geo.state, geo.country].filter(Boolean).join(', ');
+              }
+            } catch {}
+
+            if (!locName) {
+              const resolved = resolveLocationName(pos.coords.latitude, pos.coords.longitude);
+              locName = resolved.locationName;
+              locArea = resolved.approximateArea;
+            }
+
             const coords: GeoCoordinates = {
               lat: pos.coords.latitude,
               lng: pos.coords.longitude,
@@ -412,10 +598,15 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
               speed: pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0,
               heading: pos.coords.heading || 0,
               timestamp: pos.timestamp,
-              locationName: resolved.locationName,
-              approximateArea: resolved.approximateArea,
+              locationName: locName,
+              approximateArea: locArea,
               isRealGps: true,
             };
+
+            try {
+              localStorage.setItem('safegrid_cached_coords', JSON.stringify(coords));
+            } catch {}
+
             setLiveCoords(coords);
             setIsLocatingGps(false);
             if (journey && journey.status === 'ACTIVE') {
@@ -437,41 +628,20 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
             resolve(coords);
           },
           (err) => {
-            console.warn('Geolocation fallback activated:', err.message);
-            const offset = (Math.random() - 0.5) * 0.002;
-            const fallbackLat = 12.9716 + offset;
-            const fallbackLng = 77.5946 + offset;
-            const resolved = resolveLocationName(fallbackLat, fallbackLng);
-            const fallback: GeoCoordinates = {
-              lat: fallbackLat,
-              lng: fallbackLng,
-              accuracy: 14,
-              speed: 16,
-              timestamp: Date.now(),
-              locationName: resolved.locationName,
-              approximateArea: resolved.approximateArea,
-              isRealGps: false,
-            };
-            setLiveCoords(fallback);
+            console.warn('Geolocation sensor error / permission denied:', err.message);
+            setLiveCoords(prev => {
+              const fallback: GeoCoordinates = {
+                ...prev,
+                isRealGps: false,
+                locationName: prev.lat !== 0 ? prev.locationName : 'Location Unavailable',
+                approximateArea: prev.lat !== 0 ? prev.approximateArea : 'Tap to enable GPS permission',
+              };
+              resolve(fallback);
+              return fallback;
+            });
             setIsLocatingGps(false);
-            if (journey && journey.status === 'ACTIVE') {
-              updateJourneyLocation(fallback);
-            }
-            fetch('/api/location', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                latitude: fallback.lat,
-                longitude: fallback.lng,
-                locationName: fallback.locationName,
-                approximateArea: fallback.approximateArea,
-                accuracy: fallback.accuracy,
-                speed: fallback.speed,
-              }),
-            }).catch(() => {});
-            resolve(fallback);
           },
-          { enableHighAccuracy: true, timeout: 6000, maximumAge: 4000 }
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 6000 }
         );
       } else {
         setIsLocatingGps(false);
@@ -509,22 +679,49 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
     }).catch(() => {});
   };
 
-  // Sync battery when user changes
+  // Real Battery Listener (subscribes to AndroidBatteryBridge & Web Battery API)
   useEffect(() => {
-    setBatteryLevel(currentUser.batteryLevel);
-    // If David, automatically select his checkin state
+    const unsubscribe = subscribeBatteryChanges((realInfo) => {
+      if (isDemoMode && demoConfig.simulatedBatteryLevel !== null) {
+        const simLevel = demoConfig.simulatedBatteryLevel;
+        setBatteryInfo({
+          level: simLevel,
+          isCharging: false,
+          state: categorizeBattery(simLevel),
+          isAvailable: true,
+          source: 'UNAVAILABLE',
+        });
+        setBatteryLevel(simLevel);
+      } else {
+        // Normal Mode: strictly uses real Android / Web battery information
+        setBatteryInfo(realInfo);
+        setBatteryLevel(realInfo.level);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [isDemoMode, demoConfig.simulatedBatteryLevel]);
+
+  // Sync persona updates
+  useEffect(() => {
     if (currentUser.role === 'SENIOR') {
       setSafetyState('SAFE');
     }
   }, [currentUser]);
 
-  // Sync initial state from server.ts
+  // Sync initial state from server.ts and refresh live GPS
   useEffect(() => {
+    refreshLiveGps().catch(() => {});
+
     fetch('/api/contacts')
       .then(res => res.json())
       .then(data => {
         if (data.success && Array.isArray(data.contacts) && data.contacts.length > 0) {
-          setContacts(data.contacts);
+          const auth = getStoredAuth();
+          const local = auth ? loadContacts(auth.id) : null;
+          if (!local || local.length === 0) {
+            setContacts(data.contacts);
+          }
         }
       })
       .catch(() => {});
@@ -533,7 +730,11 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
       .then(res => res.json())
       .then(data => {
         if (data.success && Array.isArray(data.schedules) && data.schedules.length > 0) {
-          setCheckins(data.schedules);
+          const auth = getStoredAuth();
+          const local = auth ? loadCheckIns(auth.id) : null;
+          if (!local || local.length === 0) {
+            setCheckins(data.schedules);
+          }
         }
       })
       .catch(() => {});
@@ -612,7 +813,11 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
       distanceKm: contactData.distanceKm ?? 1.2,
       approxLocation: contactData.approxLocation || 'Nearby Residence',
     };
-    setContacts(prev => [...prev, newContact]);
+    setContacts(prev => {
+      const updated = [...prev, newContact];
+      saveContacts(currentUser.id, updated);
+      return updated;
+    });
 
     fetch('/api/contacts', {
       method: 'POST',
@@ -623,13 +828,18 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
     .then(data => {
       if (data.success && data.contacts) {
         setContacts(data.contacts);
+        saveContacts(currentUser.id, data.contacts);
       }
     })
     .catch(() => {});
   };
 
   const updateContact = (id: string, updates: Partial<SafetyContact>) => {
-    setContacts(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    setContacts(prev => {
+      const updated = prev.map(c => c.id === id ? { ...c, ...updates } : c);
+      saveContacts(currentUser.id, updated);
+      return updated;
+    });
     fetch(`/api/contacts/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -647,11 +857,19 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
         body: JSON.stringify({ [permission]: updatedVal })
       }).catch(() => {});
     }
-    setContacts(prev => prev.map(c => c.id === id ? { ...c, [permission]: !c[permission] } : c));
+    setContacts(prev => {
+      const updated = prev.map(c => c.id === id ? { ...c, [permission]: !c[permission] } : c);
+      saveContacts(currentUser.id, updated);
+      return updated;
+    });
   };
 
   const deleteContact = (id: string) => {
-    setContacts(prev => prev.filter(c => c.id !== id));
+    setContacts(prev => {
+      const updated = prev.filter(c => c.id !== id);
+      saveContacts(currentUser.id, updated);
+      return updated;
+    });
     fetch(`/api/contacts/${id}`, { method: 'DELETE' }).catch(() => {});
   };
 
@@ -662,7 +880,11 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
       id: 'chk_' + Date.now(),
       isCompletedToday: false,
     };
-    setCheckins(prev => [...prev, newSchedule]);
+    setCheckins(prev => {
+      const updated = [...prev, newSchedule];
+      saveCheckIns(currentUser.id, updated);
+      return updated;
+    });
 
     fetch('/api/schedules', {
       method: 'POST',
@@ -673,13 +895,18 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
     .then(data => {
       if (data.success && data.schedules) {
         setCheckins(data.schedules);
+        saveCheckIns(currentUser.id, data.schedules);
       }
     })
     .catch(() => {});
   };
 
   const updateCheckIn = (id: string, updates: Partial<CheckInSchedule>) => {
-    setCheckins(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    setCheckins(prev => {
+      const updated = prev.map(c => c.id === id ? { ...c, ...updates } : c);
+      saveCheckIns(currentUser.id, updated);
+      return updated;
+    });
     fetch(`/api/schedules/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -688,7 +915,11 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
   };
 
   const deleteCheckIn = (id: string) => {
-    setCheckins(prev => prev.filter(c => c.id !== id));
+    setCheckins(prev => {
+      const updated = prev.filter(c => c.id !== id);
+      saveCheckIns(currentUser.id, updated);
+      return updated;
+    });
     fetch(`/api/schedules/${id}`, { method: 'DELETE' }).catch(() => {});
   };
 
@@ -706,7 +937,11 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const simulateMissedCheckIn = () => {
     fetch('/api/checkin/missed', { method: 'POST' }).catch(() => {});
-    setSafetyState('ATTENTION');
+    promptSafetyCheck("We haven't received your scheduled welfare check-in.");
+    
+    const effLocName = liveCoords.locationName || resolveLocationName(liveCoords.lat, liveCoords.lng).locationName;
+    const effArea = liveCoords.approximateArea || resolveLocationName(liveCoords.lat, liveCoords.lng).approximateArea;
+
     const newIncident: Incident = {
       id: 'SG-' + Math.floor(1000 + Math.random() * 9000),
       userId: currentUser.id,
@@ -716,11 +951,11 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
       priority: 'HIGH',
       status: 'ATTENTION',
       state: 'ATTENTION',
-      latitude: 37.7749,
-      longitude: -122.4194,
+      latitude: liveCoords.lat,
+      longitude: liveCoords.lng,
       locationPrecision: gpsPrecision,
-      locationName: 'Home Residence (Sector 3)',
-      approximateArea: 'Sector 3, Residential Zone',
+      locationName: effLocName,
+      approximateArea: effArea,
       createdAt: 'Just now',
       updatedAt: 'Just now',
       contactsNotifiedCount: 0,
@@ -1154,9 +1389,224 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   };
 
-  const escalateFromAttentionToEmergency = (reason = 'User indicated need for assistance during attention check') => {
-    fetch('/api/escalate', { method: 'POST' }).catch(() => {});
-    triggerEmergencyIncident('WELFARE_CHECK', reason);
+  const escalateFromAttentionToEmergency = (reason?: string) => {
+    triggerEmergencyIncident('MANUAL_SOS', reason || 'Escalated from attention verification state.');
+  };
+
+  const promptSafetyCheck = (reason: string) => {
+    setSafetyCheckReason(reason);
+    setIsSafetyCheckModalOpen(true);
+    setCurrentSafetyEventStatus('VERIFYING');
+    setSafetyState('ATTENTION');
+
+    addNotification({
+      title: '⚠️ Safety Verification Active',
+      message: `${reason} Please verify that you are safe.`,
+      type: 'CHECKIN',
+      actor: 'Escalation Sentinel',
+    });
+  };
+
+  const confirmUserSafe = () => {
+    setIsSafetyCheckModalOpen(false);
+    setCurrentSafetyEventStatus('RESOLVED');
+    setSafetyState('SAFE');
+
+    const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // Mark pending checkins complete
+    setCheckins(prev => prev.map(c => !c.isCompletedToday ? { ...c, isCompletedToday: true, lastRespondedAt: `${nowStr} Today` } : c));
+
+    // If active incident exists, resolve it cleanly
+    if (activeIncident) {
+      setIncidents(prev => prev.map(i => i.id === activeIncident.id ? { ...i, status: 'RESOLVED', state: 'SAFE' } : i));
+      setActiveIncident(null);
+    }
+
+    addNotification({
+      title: '✅ Safety Confirmed',
+      message: 'You confirmed well-being. All monitoring resumed normal status.',
+      type: 'CHECKIN',
+    });
+
+    if (isDemoMode) {
+      setDemoTimeline(prev => [
+        {
+          id: 'dt-' + Date.now(),
+          time: nowStr,
+          title: 'User Confirmed Safe',
+          description: 'Alex tapped "I\'M SAFE". Escalation aborted; status normal.',
+          actor: demoConfig.demoUserName,
+          status: 'RESOLVED',
+        },
+        ...prev,
+      ]);
+    }
+  };
+
+  const userNeedHelp = (reason = 'User indicated distress during safety check') => {
+    setIsSafetyCheckModalOpen(false);
+    setCurrentSafetyEventStatus('ESCALATING');
+
+    const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (isDemoMode) {
+      // In Demo Mode, DO NOT trigger real 112 or external alerts. Send safe demo notification to Phone B (Rahul)
+      setCurrentSafetyEventStatus('TRUSTED_CONTACT_NOTIFIED');
+      setDemoTimeline(prev => [
+        {
+          id: 'dt-esc-' + Date.now(),
+          time: nowStr,
+          title: 'Safety Alert Sent to Friend',
+          description: `High-priority alert dispatched to ${demoConfig.demoFriendName} (${demoConfig.demoFriendPhone}).`,
+          actor: 'Demo Escalation Sentinel',
+          status: 'TRUSTED_CONTACT_NOTIFIED',
+        },
+        ...prev,
+      ]);
+      fetch('/api/demo/alert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userName: demoConfig.demoUserName,
+          friendName: demoConfig.demoFriendName,
+          reason,
+          batteryLevel: batteryInfo.level ?? 67,
+          location: liveCoords.locationName || 'Main Avenue Transit Corridor',
+          timestamp: nowStr,
+        }),
+      }).catch(() => {});
+    } else {
+      // Normal Mode: Trigger full incident & emergency services / contacts
+      triggerEmergencyIncident('WELFARE_CHECK', reason);
+    }
+  };
+
+  const cancelSafetyCheck = () => {
+    setIsSafetyCheckModalOpen(false);
+    setCurrentSafetyEventStatus('CANCELLED');
+    if (safetyState === 'ATTENTION') {
+      setSafetyState('SAFE');
+    }
+  };
+
+  const toggleDemoMode = () => {
+    setIsDemoMode(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('safegrid_demo_mode', next ? 'true' : 'false');
+      } catch {}
+      return next;
+    });
+  };
+
+  const updateDemoConfig = (updates: Partial<DemoConfig>) => {
+    setDemoConfig(prev => {
+      const updated = { ...prev, ...updates };
+      try {
+        localStorage.setItem('safegrid_demo_config', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
+
+  const runDemoStep = (step: 'START_JOURNEY' | 'MISS_CHECKIN' | 'NOTIFY_FRIEND' | 'FRIEND_ACKNOWLEDGE' | 'RESOLVE_SAFE') => {
+    const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (!isDemoMode) {
+      setIsDemoMode(true);
+    }
+
+    if (step === 'START_JOURNEY') {
+      startJourney('College (Campus North)', 'Home (Green Glen Sector 4)', 25);
+      setCurrentSafetyEventStatus('NORMAL');
+      setDemoTimeline(prev => [
+        {
+          id: 'dt-jny-' + Date.now(),
+          time: nowStr,
+          title: 'Journey Started',
+          description: 'Alex started journey from College to Home. ETA: 25 mins.',
+          actor: 'Alex (Phone A)',
+          status: 'NORMAL',
+        },
+        ...prev,
+      ]);
+    } else if (step === 'MISS_CHECKIN') {
+      promptSafetyCheck("We haven't received your scheduled check-in.");
+      setCurrentSafetyEventStatus('CHECK_IN_MISSED');
+      setDemoTimeline(prev => [
+        {
+          id: 'dt-chk-' + Date.now(),
+          time: nowStr,
+          title: 'Check-in Missed',
+          description: 'Scheduled welfare prompt was not acknowledged. 60s safety verification countdown active.',
+          actor: 'Safety Sentinel',
+          status: 'CHECK_IN_MISSED',
+        },
+        ...prev,
+      ]);
+    } else if (step === 'NOTIFY_FRIEND') {
+      setIsSafetyCheckModalOpen(false);
+      setCurrentSafetyEventStatus('TRUSTED_CONTACT_NOTIFIED');
+      fetch('/api/demo/alert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userName: demoConfig.demoUserName,
+          friendName: demoConfig.demoFriendName,
+          reason: 'Check-in missed; no response during verification window',
+          batteryLevel: batteryInfo.level ?? 67,
+          location: liveCoords.locationName || 'College Transit Corridor',
+          timestamp: nowStr,
+        }),
+      }).catch(() => {});
+      setDemoTimeline(prev => [
+        {
+          id: 'dt-alert-' + Date.now(),
+          time: nowStr,
+          title: 'Trusted Contact Alert Dispatched',
+          description: `Phone B (${demoConfig.demoFriendName}) notified with location & battery status.`,
+          actor: 'Demo Engine',
+          status: 'TRUSTED_CONTACT_NOTIFIED',
+        },
+        ...prev,
+      ]);
+    } else if (step === 'FRIEND_ACKNOWLEDGE') {
+      setCurrentSafetyEventStatus('ACKNOWLEDGED');
+      fetch('/api/demo/acknowledge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actor: demoConfig.demoFriendName }),
+      }).catch(() => {});
+      setDemoTimeline(prev => [
+        {
+          id: 'dt-ack-' + Date.now(),
+          time: nowStr,
+          title: 'Friend Acknowledged Alert',
+          description: `${demoConfig.demoFriendName} confirmed assist on Phone B: "On my way / Calling now".`,
+          actor: demoConfig.demoFriendName,
+          status: 'ACKNOWLEDGED',
+        },
+        ...prev,
+      ]);
+    } else if (step === 'RESOLVE_SAFE') {
+      confirmUserSafe();
+    }
+  };
+
+  const resetDemo = () => {
+    setDemoTimeline([
+      {
+        id: 'dt-init-' + Date.now(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        title: 'Demo Session Reset',
+        description: 'Clean demo state ready for presentation.',
+        actor: 'System',
+        status: 'NORMAL',
+      },
+    ]);
+    setCurrentSafetyEventStatus('NORMAL');
+    setIsSafetyCheckModalOpen(false);
+    setSafetyState('SAFE');
   };
 
   // Responder Lifecycle
@@ -1359,10 +1809,36 @@ export const SafeGridProvider: React.FC<{ children: ReactNode }> = ({ children }
         offlineQueue,
         batteryLevel,
         setBatteryLevel,
+        batteryInfo,
+        isBatteryAvailable,
         gpsPrecision,
         toggleGpsPrecision,
         activeSafetySession,
         toggleSafetySession,
+        escalationConfig,
+        updateEscalationConfig,
+        isEscalationSettingsOpen,
+        setIsEscalationSettingsOpen,
+        isSafetyCheckModalOpen,
+        setIsSafetyCheckModalOpen,
+        safetyCheckReason,
+        promptSafetyCheck,
+        confirmUserSafe,
+        userNeedHelp,
+        cancelSafetyCheck,
+        currentSafetyEventStatus,
+        setCurrentSafetyEventStatus,
+        isDemoMode,
+        toggleDemoMode,
+        demoConfig,
+        updateDemoConfig,
+        demoTimeline,
+        runDemoStep,
+        resetDemo,
+        isDemoGuideOpen,
+        setIsDemoGuideOpen,
+        isDemoPanelOpen,
+        setIsDemoPanelOpen,
         runSeniorCheckInDemo,
         runWomanJourneyDemo,
         runSOSCountdownDemo,

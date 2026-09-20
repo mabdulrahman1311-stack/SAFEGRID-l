@@ -139,7 +139,7 @@ export function resolveLocationName(lat: number, lng: number): { locationName: s
 export const LOCATION_PRESETS = [
   { 
     name: 'Current Live GPS Location (Device Sensor)', 
-    coords: { lat: 12.9716, lng: 77.5946, locationName: 'Central Metro Corridor', approximateArea: 'Bengaluru Central' }, 
+    coords: { lat: 0, lng: 0, locationName: 'Device Live GPS', approximateArea: 'Auto-detected via sensor' }, 
     category: 'live' 
   },
   { 

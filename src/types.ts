@@ -190,3 +190,65 @@ export interface DuplicateIncidentCluster {
   reason: string;
   suggestedAction: string;
 }
+
+// ----------------------------------------------------
+// SAFETY ESCALATION & EVENT STATUS TYPES (Parts 5, 7, 8, 17)
+// ----------------------------------------------------
+export type SafetyEventStatus =
+  | 'NORMAL'
+  | 'CHECK_IN_DUE'
+  | 'CHECK_IN_MISSED'
+  | 'VERIFYING'
+  | 'ESCALATING'
+  | 'TRUSTED_CONTACT_NOTIFIED'
+  | 'ACKNOWLEDGED'
+  | 'RESOLVED'
+  | 'CANCELLED';
+
+export type BatteryStateCategory = 'NORMAL' | 'MODERATE' | 'LOW' | 'CRITICAL' | 'UNAVAILABLE';
+
+export interface BatteryInfo {
+  level: number | null; // e.g. 67, or null if sensor unavailable
+  isCharging: boolean | null;
+  state: BatteryStateCategory;
+  isAvailable: boolean;
+  source: 'ANDROID_NATIVE' | 'WEB_API' | 'UNAVAILABLE';
+}
+
+export interface EscalationConfig {
+  enabled: boolean;
+  gracePeriodSeconds: number; // 30, 60, 120, 300
+  triggers: {
+    missedCheckIn: boolean;
+    sosPressed: boolean;
+    overdueJourney: boolean;
+    unresponsivePrompt: boolean;
+  };
+  selectedContactIds: string[];
+}
+
+export interface DemoTimelineItem {
+  id: string;
+  time: string;
+  title: string;
+  description: string;
+  actor: string;
+  status: SafetyEventStatus;
+}
+
+export interface DemoConfig {
+  isDemoMode: boolean;
+  demoUserName: string;
+  demoFriendName: string;
+  demoFriendPhone: string;
+  userName?: string;
+  friendName?: string;
+  currentStep?: string;
+  demoBatteryLevel?: number;
+  simulatedBatteryLevel: number | null; // ONLY affects Demo Mode
+  simulatedNetworkOnline: boolean;
+  simulatedGpsAvailable: boolean;
+  currentEventStatus: SafetyEventStatus;
+  timeline: DemoTimelineItem[];
+}
+

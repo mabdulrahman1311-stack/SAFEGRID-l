@@ -60,7 +60,7 @@ export const Header: React.FC<Props> = ({ onOpenJuryModal, onOpenScenarioModal }
   } = useSafeGrid();
 
   const toggleBattery = () => {
-    setBatteryLevel(batteryLevel > 20 ? 14 : 75);
+    setBatteryLevel((batteryLevel ?? 75) > 20 ? 14 : 75);
   };
 
   return (
@@ -235,15 +235,15 @@ export const Header: React.FC<Props> = ({ onOpenJuryModal, onOpenScenarioModal }
           <button
             id="toggle-battery"
             onClick={toggleBattery}
-            title={`Battery: ${batteryLevel}% (Click to toggle low battery simulation)`}
+            title={batteryLevel !== null ? `Battery: ${batteryLevel}% (Click to toggle low battery simulation)` : 'Battery unavailable'}
             className={`hidden lg:flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-medium transition-all ${
-              batteryLevel <= 20
+              (batteryLevel ?? 100) <= 20
                 ? 'bg-rose-950/60 border-rose-800/80 text-rose-300 animate-pulse'
                 : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'
             }`}
           >
-            {batteryLevel <= 20 ? <BatteryLow className="w-3.5 h-3.5" /> : <Battery className="w-3.5 h-3.5" />}
-            <span>{batteryLevel}%</span>
+            {(batteryLevel ?? 100) <= 20 ? <BatteryLow className="w-3.5 h-3.5" /> : <Battery className="w-3.5 h-3.5" />}
+            <span>{batteryLevel !== null ? `${batteryLevel}%` : 'N/A'}</span>
           </button>
 
           {/* GPS Accuracy & Location Tracker */}

@@ -33,11 +33,25 @@ export const GuardianCompanionView: React.FC = () => {
     setViewMode,
     triggerEmergencyIncident,
     resetAllToDefault,
-    setCustomLocation
+    setCustomLocation,
+    isDemoMode,
+    demoConfig,
+    runDemoStep
   } = useSafeGrid();
 
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [friendStatus, setFriendStatus] = useState<'STANDBY' | 'RESPONDING' | 'ARRIVED'>('STANDBY');
+  const [demoAlert, setDemoAlert] = useState<{
+    userName: string;
+    friendName: string;
+    reason: string;
+    batteryLevel: number | null;
+    location: string;
+    timestamp: string;
+    status: string;
+  } | null>(null);
+  const [showDemoJourneyModal, setShowDemoJourneyModal] = useState(false);
+  const [simulatedCallActive, setSimulatedCallActive] = useState(false);
 
   // Parse location and user metadata from URL query parameters (sent via QR or SMS)
   useEffect(() => {
@@ -97,6 +111,52 @@ export const GuardianCompanionView: React.FC = () => {
     }, 3000);
     return () => clearInterval(interval);
   }, [safetyState, liveCoords.lat, liveCoords.lng]);
+
+  // Poll backend demo state every 2.5s for seamless Phone A <-> Phone B demo sync
+  useEffect(() => {
+    const pollDemoState = async () => {
+      try {
+        const res = await fetch('/api/demo/state');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.alert) {
+            setDemoAlert(data.alert);
+          } else {
+            setDemoAlert(null);
+          }
+        }
+      } catch {
+        // network polling fallback
+      }
+    };
+    pollDemoState();
+    const interval = setInterval(pollDemoState, 2500);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleAcknowledgeDemoAlert = async () => {
+    try {
+      await fetch('/api/demo/acknowledge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actor: demoConfig.friendName || 'Rahul' })
+      });
+      setDemoAlert(prev => prev ? { ...prev, status: 'ACKNOWLEDGED' } : null);
+      runDemoStep('FRIEND_ACKNOWLEDGE');
+    } catch (err) {
+      console.error('Failed to acknowledge demo alert:', err);
+    }
+  };
+
+  const handleResolveDemoAlert = async () => {
+    try {
+      await fetch('/api/demo/resolve', { method: 'POST' });
+      setDemoAlert(null);
+      runDemoStep('RESOLVE_SAFE');
+    } catch (err) {
+      console.error('Failed to resolve demo alert:', err);
+    }
+  };
 
   // Coordinates priority: active incident coordinates > liveCoords
   const effLat = activeIncident?.latitude ?? liveCoords.lat;
@@ -189,6 +249,157 @@ export const GuardianCompanionView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* DEMO MODE FRIEND SAFETY ALERT CARD (Part 13 Specification) */}
+      {(demoAlert || (isDemoMode && demoConfig.currentStep !== 'IDLE')) && (
+        <div className="bg-slate-900 border-2 border-purple-500 rounded-3xl p-6 shadow-2xl shadow-purple-950/70 space-y-5 animate-in fade-in">
+          <div className="flex items-center justify-between pb-3 border-b border-purple-500/30">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-purple-500 animate-ping" />
+              <span className="text-xs font-black uppercase tracking-wider text-purple-400">
+                DEMO MODE • FRIEND SAFETY ALERT
+              </span>
+            </div>
+            <span className="text-[11px] font-black px-2.5 py-1 rounded-xl bg-purple-950 text-purple-300 border border-purple-800">
+              {demoAlert?.status || (demoConfig.currentStep === 'FRIEND_ACKNOWLEDGE' ? 'ACKNOWLEDGED' : 'NEEDS ASSISTANCE')}
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-xl font-black text-white flex items-center gap-2">
+              <AlertTriangle className="w-6 h-6 text-amber-400" />
+              <span>{demoConfig.userName || 'Alex'} may need assistance</span>
+            </h2>
+            <p className="text-xs text-purple-200/90">
+              {demoAlert?.reason || 'Check-in missed; safety check grace period expired without user cancellation.'}
+            </p>
+          </div>
+
+          {/* Core Telemetry Display as specified in Part 13 */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 space-y-1">
+              <span className="text-slate-400 text-[11px] font-medium block">Journey</span>
+              <p className="text-xs font-bold text-white flex items-center gap-1">
+                <Navigation className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                <span className="truncate">College → Home</span>
+              </p>
+            </div>
+
+            <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 space-y-1">
+              <span className="text-slate-400 text-[11px] font-medium block">Status</span>
+              <p className="text-xs font-bold text-amber-400 flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">Check-in missed</span>
+              </p>
+            </div>
+
+            <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 space-y-1">
+              <span className="text-slate-400 text-[11px] font-medium block">Location</span>
+              <p className="text-xs font-mono font-bold text-emerald-400 truncate flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">{effLoc || 'Transit Corridor'}</span>
+              </p>
+            </div>
+
+            <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 space-y-1">
+              <span className="text-slate-400 text-[11px] font-medium block">Battery</span>
+              <p className="text-xs font-bold text-white flex items-center gap-1">
+                <Battery className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>{demoAlert?.batteryLevel ?? demoConfig.demoBatteryLevel}%</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Action Buttons for Friend (Part 13 Actions) */}
+          <div className="space-y-2.5 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <button
+                onClick={() => setShowDemoJourneyModal(prev => !prev)}
+                className="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-blue-950/60 transition-all"
+              >
+                <Navigation className="w-4 h-4" />
+                <span>{showDemoJourneyModal ? 'HIDE JOURNEY' : 'VIEW JOURNEY'}</span>
+              </button>
+
+              <button
+                onClick={handleAcknowledgeDemoAlert}
+                className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all ${
+                  demoAlert?.status === 'ACKNOWLEDGED' || demoConfig.currentStep === 'FRIEND_ACKNOWLEDGE'
+                    ? 'bg-emerald-700 text-emerald-100 border border-emerald-500'
+                    : 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-950/60'
+                }`}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>
+                  {demoAlert?.status === 'ACKNOWLEDGED' || demoConfig.currentStep === 'FRIEND_ACKNOWLEDGE'
+                    ? 'ACKNOWLEDGED'
+                    : 'ACKNOWLEDGE ALERT'}
+                </span>
+              </button>
+
+              <a
+                href={`tel:${currentUser.phone || '+15550198822'}`}
+                onClick={() => setSimulatedCallActive(true)}
+                className="py-2.5 px-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-purple-950/60 transition-all"
+              >
+                <Phone className="w-4 h-4" />
+                <span>CALL {(demoConfig.userName || 'Alex').toUpperCase()}</span>
+              </a>
+            </div>
+
+            {/* Expanded Journey Details */}
+            {showDemoJourneyModal && (
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2 text-xs animate-in slide-in-from-top-2">
+                <div className="flex items-center justify-between font-bold text-slate-200">
+                  <span>Demo Commute Route: College to Home</span>
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-blue-400 hover:underline flex items-center gap-1"
+                  >
+                    <span>Open in Google Maps</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-400">
+                  <div>Departure: <strong>College Campus</strong> (18:30)</div>
+                  <div>Destination: <strong>Home Residence</strong> (19:15)</div>
+                  <div>Live GPS: <strong>{effLat.toFixed(5)}, {effLng.toFixed(5)}</strong></div>
+                  <div>Safety Check Grace: <strong>Expired</strong></div>
+                </div>
+              </div>
+            )}
+
+            {/* Simulated Call Notification */}
+            {simulatedCallActive && (
+              <div className="p-3 bg-purple-950/80 border border-purple-500/50 rounded-2xl text-xs text-purple-200 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-purple-400 animate-bounce" />
+                  <span>Dialing {demoConfig.userName || 'Alex'} ({currentUser.phone || '+15550198822'})...</span>
+                </div>
+                <button
+                  onClick={() => setSimulatedCallActive(false)}
+                  className="px-2 py-1 rounded-lg bg-purple-800 hover:bg-purple-700 text-[10px] font-bold"
+                >
+                  End Call
+                </button>
+              </div>
+            )}
+
+            {/* Resolve Demo Event */}
+            <div className="flex justify-end pt-1">
+              <button
+                onClick={handleResolveDemoAlert}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs flex items-center gap-1.5 transition-colors"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Friend Confirmed Safe (Resolve Event)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Status Display */}
       {safetyState === 'EMERGENCY' || safetyState === 'ATTENTION' ? (

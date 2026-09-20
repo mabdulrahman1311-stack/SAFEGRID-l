@@ -4,6 +4,7 @@ import {
   Wifi,
   WifiOff,
   Battery,
+  BatteryCharging,
   BatteryLow,
   Home,
   MapPin,
@@ -25,8 +26,41 @@ const IS_REAL_PHONE =
   (window.innerWidth <= 500 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
 
 export const MobileShell: React.FC<Props> = ({ children, activeTab, setActiveTab }) => {
-  const { isOnline, batteryLevel, safetyState, currentUser } = useSafeGrid();
+  const { isOnline, batteryLevel, batteryInfo, safetyState, currentUser, isDemoMode } = useSafeGrid();
   const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const renderBatteryDisplay = () => {
+    if (batteryInfo.level === null) {
+      return (
+        <span className="flex items-center gap-1 text-slate-500" title="Battery information unavailable">
+          <Battery className="w-3.5 h-3.5" />
+          <span className="text-[10px] font-mono">N/A</span>
+        </span>
+      );
+    }
+    return (
+      <div className="flex items-center gap-1">
+        <span className="text-[11px] font-mono font-bold text-slate-200">{batteryInfo.level}%</span>
+        {batteryInfo.isCharging ? (
+          <span title="Charging">
+            <BatteryCharging className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+          </span>
+        ) : batteryInfo.level <= 10 ? (
+          <span title="Critical Battery (<10%)">
+            <BatteryLow className="w-3.5 h-3.5 text-rose-500 animate-bounce" />
+          </span>
+        ) : batteryInfo.level <= 20 ? (
+          <span title="Low Battery (<=20%)">
+            <BatteryLow className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+          </span>
+        ) : (
+          <span title="Battery Normal">
+            <Battery className="w-3.5 h-3.5 text-emerald-400" />
+          </span>
+        )}
+      </div>
+    );
+  };
 
   /* ── NATIVE PHONE VIEW ── fills the whole real phone screen ─────────── */
   if (IS_REAL_PHONE) {
@@ -34,19 +68,23 @@ export const MobileShell: React.FC<Props> = ({ children, activeTab, setActiveTab
       <div className="fixed inset-0 flex flex-col bg-slate-950 text-slate-100" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {/* Slim Status Strip */}
         <div className="flex items-center justify-between px-4 py-2 bg-slate-950/95 border-b border-slate-800/60 shrink-0">
-          <span className="text-xs font-bold text-white tracking-tight flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-rose-500" />
-            SAFEGRID
-          </span>
-          <div className="flex items-center gap-2 text-slate-400">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-white tracking-tight flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-rose-500" />
+              SAFEGRID
+            </span>
+            {isDemoMode && (
+              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-purple-500/30 text-purple-300 border border-purple-400/40 tracking-wider">
+                DEMO MODE
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2.5 text-slate-400">
             {isOnline
-              ? <Wifi className="w-3.5 h-3.5 text-emerald-400" />
-              : <WifiOff className="w-3.5 h-3.5 text-amber-400" />}
-            <span className="text-[11px] font-mono">{batteryLevel}%</span>
-            {batteryLevel <= 20
-              ? <BatteryLow className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
-              : <Battery className="w-3.5 h-3.5 text-slate-400" />}
-            <span className="text-[11px] font-semibold text-slate-300">{currentTime}</span>
+              ? <span title="Online"><Wifi className="w-3.5 h-3.5 text-emerald-400" /></span>
+              : <span title="Offline"><WifiOff className="w-3.5 h-3.5 text-amber-400 animate-pulse" /></span>}
+            {renderBatteryDisplay()}
+            <span className="text-[11px] font-semibold text-slate-300 font-mono">{currentTime}</span>
           </div>
         </div>
 
@@ -106,13 +144,17 @@ export const MobileShell: React.FC<Props> = ({ children, activeTab, setActiveTab
 
         {/* Status Bar */}
         <div className="w-full h-11 px-6 pt-2.5 flex items-center justify-between text-xs text-slate-300 font-medium z-20 shrink-0 select-none bg-slate-950/60 backdrop-blur-sm">
-          <span className="font-semibold text-[13px] tracking-tight">{currentTime}</span>
-          <div className="flex items-center gap-2 text-slate-300">
-            {isOnline ? <Wifi className="w-3.5 h-3.5 text-emerald-400" /> : <WifiOff className="w-3.5 h-3.5 text-amber-400" />}
-            <span className="text-[11px] font-mono">{batteryLevel}%</span>
-            {batteryLevel <= 20
-              ? <BatteryLow className="w-4 h-4 text-rose-400 animate-pulse" />
-              : <Battery className="w-4 h-4 text-slate-300" />}
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-[13px] tracking-tight">{currentTime}</span>
+            {isDemoMode && (
+              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-purple-500/30 text-purple-300 border border-purple-400/40 tracking-wider">
+                DEMO MODE
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2.5 text-slate-300">
+            {isOnline ? <span title="Online"><Wifi className="w-3.5 h-3.5 text-emerald-400" /></span> : <span title="Offline"><WifiOff className="w-3.5 h-3.5 text-amber-400 animate-pulse" /></span>}
+            {renderBatteryDisplay()}
           </div>
         </div>
 

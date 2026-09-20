@@ -65,8 +65,9 @@ export const PWAInstallBanner: React.FC<Props> = ({ className = '', variant = 'b
   };
 
   // Local IP and URLs
-  const wifiUrl = 'http://10.231.17.67:5173';
-  const localhostUrl = 'http://localhost:5173';
+  const port = typeof window !== 'undefined' && window.location.port ? window.location.port : '3000';
+  const wifiUrl = `http://10.231.17.67:${port}`;
+  const localhostUrl = `http://localhost:${port}`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=${encodeURIComponent(wifiUrl)}`;
 
   return (

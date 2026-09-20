@@ -24,14 +24,35 @@ import { QuickTestConsole } from './components/quicktest/QuickTestConsole';
 import { PersonTypeOnboardingModal } from './components/onboarding/PersonTypeOnboardingModal';
 import { GuardianCompanionView } from './components/guardian/GuardianCompanionView';
 import { ConnectFriendModal } from './components/modals/ConnectFriendModal';
-import { Smartphone, Monitor, ShieldCheck, Activity, Users, Radio } from 'lucide-react';
+import { LoginScreen } from './components/auth/LoginScreen';
+import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
+import { SafetyCheckModal } from './components/modals/SafetyCheckModal';
+import { EscalationSettingsModal } from './components/modals/EscalationSettingsModal';
+import { DemoGuideModal } from './components/demo/DemoGuideModal';
+import { getStoredAuth, logout, AuthUser } from './services/auth';
+import { isOnboardingComplete } from './services/storage';
+import { Smartphone, Monitor, ShieldCheck, Activity, Users, LogOut } from 'lucide-react';
 
 const IS_REAL_PHONE =
   typeof window !== 'undefined' &&
   (window.innerWidth <= 500 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
 
-const AppContent: React.FC = () => {
-  const { viewMode, setViewMode, currentUser, safetyState, setIsConnectFriendModalOpen } = useSafeGrid();
+interface AppContentProps {
+  onLogout?: () => void;
+}
+
+const AppContent: React.FC<AppContentProps> = ({ onLogout }) => {
+  const { 
+    viewMode, 
+    setViewMode, 
+    currentUser, 
+    safetyState, 
+    setIsConnectFriendModalOpen,
+    isEscalationSettingsOpen,
+    setIsEscalationSettingsOpen,
+    isDemoGuideOpen,
+    setIsDemoGuideOpen
+  } = useSafeGrid();
   const [activeMobileTab, setActiveMobileTab] = useState<'home' | 'journey' | 'checkin' | 'circle' | 'timeline'>('home');
   const [activeWebTab, setActiveWebTab] = useState<'citizen' | 'responder' | 'admin'>('citizen');
   
@@ -73,10 +94,10 @@ const AppContent: React.FC = () => {
               <div className="pt-4 flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs text-slate-400 px-4">
                 <span className="flex items-center gap-1.5 font-semibold text-slate-300">
                   <Smartphone className="w-4 h-4 text-rose-400" />
-                  Mobile Prototype View
+                  Mobile App View
                 </span>
                 <span>•</span>
-                <span>Persona: <strong className="text-white">{currentUser.name}</strong></span>
+                <span>User: <strong className="text-white">{currentUser.name}</strong></span>
                 <span>•</span>
                 <button
                   onClick={() => setIsConnectFriendModalOpen(true)}
@@ -105,6 +126,17 @@ const AppContent: React.FC = () => {
                 >
                   REST API Console
                 </button>
+                {onLogout && (
+                  <>
+                    <span>•</span>
+                    <button
+                      onClick={onLogout}
+                      className="text-slate-400 hover:text-rose-400 flex items-center gap-1 font-semibold transition-colors"
+                    >
+                      <LogOut className="w-3.5 h-3.5" /> Sign Out
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
@@ -171,9 +203,19 @@ const AppContent: React.FC = () => {
                   </button>
                 </div>
 
-                <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
-                  <Monitor className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Responsive Desktop App</span>
+                <div className="hidden sm:flex items-center gap-3 text-xs text-slate-400">
+                  <div className="flex items-center gap-1.5">
+                    <Monitor className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Responsive Desktop App</span>
+                  </div>
+                  {onLogout && (
+                    <button
+                      onClick={onLogout}
+                      className="text-slate-400 hover:text-rose-400 flex items-center gap-1 font-semibold transition-colors"
+                    >
+                      <LogOut className="w-3.5 h-3.5" /> Sign Out
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -193,6 +235,15 @@ const AppContent: React.FC = () => {
       <ConnectFriendModal />
       <MobileSOSModal />
       <MobileAttentionModal />
+      <SafetyCheckModal />
+      <EscalationSettingsModal
+        isOpen={isEscalationSettingsOpen}
+        onClose={() => setIsEscalationSettingsOpen(false)}
+      />
+      <DemoGuideModal
+        isOpen={isDemoGuideOpen}
+        onClose={() => setIsDemoGuideOpen(false)}
+      />
       <MasterBlueprintModal isOpen={isJuryModalOpen} onClose={() => setIsJuryModalOpen(false)} />
       <ScenarioRunnerModal isOpen={isScenarioModalOpen} onClose={() => setIsScenarioModalOpen(false)} />
     </div>
@@ -200,9 +251,49 @@ const AppContent: React.FC = () => {
 };
 
 export default function App() {
+  const [authUser, setAuthUser] = useState<AuthUser | null>(() => getStoredAuth());
+  const [onboarded, setOnboarded] = useState<boolean>(() => {
+    const stored = getStoredAuth();
+    return stored ? isOnboardingComplete(stored.id) : false;
+  });
+
+  const handleAuthSuccess = (userId: string, email: string, name: string) => {
+    const user: AuthUser = { id: userId, email, name, token: 'token_' + userId };
+    setAuthUser(user);
+    const isDone = isOnboardingComplete(userId);
+    setOnboarded(isDone);
+  };
+
+  const handleOnboardingComplete = () => {
+    setOnboarded(true);
+  };
+
+  const handleLogout = () => {
+    logout();
+    setAuthUser(null);
+    setOnboarded(false);
+  };
+
+  if (!authUser) {
+    return <LoginScreen onAuthSuccess={handleAuthSuccess} />;
+  }
+
+  if (!onboarded) {
+    return (
+      <SafeGridProvider>
+        <OnboardingFlow
+          userId={authUser.id}
+          userEmail={authUser.email}
+          initialName={authUser.name}
+          onComplete={handleOnboardingComplete}
+        />
+      </SafeGridProvider>
+    );
+  }
+
   return (
     <SafeGridProvider>
-      <AppContent />
+      <AppContent onLogout={handleLogout} />
     </SafeGridProvider>
   );
 }
