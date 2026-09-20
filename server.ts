@@ -1126,8 +1126,98 @@ async function startServer() {
   });
 
   // ----------------------------------------------------
-  // TWO-PHONE DEMO MODE SYNCHRONIZATION (Parts 9-16)
+  // MULTI-DEVICE DEMO SESSION ENGINE (Multi-Mobile Sync)
   // ----------------------------------------------------
+  interface SessionDevice {
+    id: string;
+    role: 'user' | 'guardian' | 'responder' | 'observer';
+    name: string;
+    batteryLevel?: number | null;
+    isCharging?: boolean | null;
+    lastPing: number;
+  }
+
+  interface SessionState {
+    id: string;
+    createdAt: string;
+    safetyState: 'SAFE' | 'ATTENTION' | 'EMERGENCY';
+    user: {
+      name: string;
+      phone: string;
+      batteryLevel: number | null;
+      locationName: string;
+      approximateArea: string;
+      lat: number;
+      lng: number;
+    };
+    journey: {
+      active: boolean;
+      origin: string;
+      destination: string;
+      status: string;
+      eta: string;
+    };
+    alert: {
+      id: string;
+      reason: string;
+      timestamp: string;
+      status: 'PENDING' | 'ACKNOWLEDGED' | 'RESOLVED';
+      actor?: string;
+    } | null;
+    devices: Record<string, SessionDevice>;
+    timeline: Array<{
+      id: string;
+      time: string;
+      title: string;
+      description: string;
+      actor: string;
+      type: string;
+    }>;
+  }
+
+  const multiSessions: Map<string, SessionState> = new Map();
+
+  function getOrCreateSession(sessionId = 'DEMO-SAFE'): SessionState {
+    const sId = (sessionId || 'DEMO-SAFE').trim().toUpperCase();
+    if (!multiSessions.has(sId)) {
+      multiSessions.set(sId, {
+        id: sId,
+        createdAt: getNowFormatted(),
+        safetyState: 'SAFE',
+        user: {
+          name: 'Alex Rivera',
+          phone: '+1 (555) 019-8822',
+          batteryLevel: 67,
+          locationName: 'College Transit Hub',
+          approximateArea: 'East Campus Corridor',
+          lat: 12.9716,
+          lng: 77.5946,
+        },
+        journey: {
+          active: false,
+          origin: 'College Campus',
+          destination: 'Home Residence',
+          status: 'STANDBY',
+          eta: '25 mins',
+        },
+        alert: null,
+        devices: {},
+        timeline: [
+          {
+            id: 'evt-init-' + Date.now(),
+            time: getNowFormatted(),
+            title: 'Session Initialized',
+            description: `Multi-device presentation room #${sId} created. Ready for Phone A and Phone B pairing.`,
+            actor: 'SafeGrid Session Engine',
+            type: 'system',
+          }
+        ],
+      });
+    }
+    return multiSessions.get(sId)!;
+  }
+
+  // Active Demo Alert for backward compatibility
   let currentDemoAlert: {
     userName: string;
     friendName: string;
@@ -1138,45 +1228,235 @@ async function startServer() {
     status: string;
   } | null = null;
 
+  app.get('/api/session/state', (req: Request, res: Response) => {
+    const sId = (req.query.sessionId as string) || 'DEMO-SAFE';
+    const session = getOrCreateSession(sId);
+
+    // Prune stale devices that haven't pinged in 15 seconds
+    const now = Date.now();
+    for (const [dId, dev] of Object.entries(session.devices)) {
+      if (now - dev.lastPing > 15000) {
+        delete session.devices[dId];
+      }
+    }
+
+    res.json({ success: true, session, serverTime: getNowFormatted() });
+  });
+
+  app.post('/api/session/ping', (req: Request, res: Response) => {
+    const { sessionId, deviceId, role, name, batteryLevel, isCharging } = req.body || {};
+    const session = getOrCreateSession(sessionId);
+    const dId = deviceId || 'device_' + Math.random().toString(36).substring(2, 7);
+
+    session.devices[dId] = {
+      id: dId,
+      role: role || 'observer',
+      name: name || (role === 'user' ? 'Phone A (Alex)' : role === 'guardian' ? 'Phone B (Rahul)' : 'Companion'),
+      batteryLevel: typeof batteryLevel === 'number' ? batteryLevel : null,
+      isCharging: typeof isCharging === 'boolean' ? isCharging : null,
+      lastPing: Date.now(),
+    };
+
+    res.json({ success: true, session });
+  });
+
+  app.post('/api/session/action', (req: Request, res: Response) => {
+    const { sessionId, action, payload, actor } = req.body || {};
+    const session = getOrCreateSession(sessionId);
+    const nowStr = getNowFormatted();
+
+    if (action === 'START_JOURNEY') {
+      session.journey.active = true;
+      session.journey.status = 'IN_TRANSIT';
+      session.journey.origin = payload?.origin || 'College Campus';
+      session.journey.destination = payload?.destination || 'Home Residence';
+      session.timeline.unshift({
+        id: 'evt_' + Date.now(),
+        time: nowStr,
+        title: 'Journey Started',
+        description: `Commute started from ${session.journey.origin} to ${session.journey.destination}.`,
+        actor: actor || session.user.name,
+        type: 'user',
+      });
+      logActivity(`🚗 [SESSION ${session.id}] Journey started: ${session.journey.origin} -> ${session.journey.destination}`, 'user');
+    } else if (action === 'MISS_CHECKIN') {
+      session.safetyState = 'ATTENTION';
+      session.alert = {
+        id: 'alt_' + Date.now(),
+        reason: payload?.reason || 'Scheduled check-in window elapsed without verification.',
+        timestamp: nowStr,
+        status: 'PENDING',
+        actor: session.user.name,
+      };
+      currentDemoAlert = {
+        userName: session.user.name,
+        friendName: 'Rahul',
+        reason: session.alert.reason,
+        batteryLevel: session.user.batteryLevel,
+        location: session.user.locationName,
+        timestamp: nowStr,
+        status: 'TRUSTED_CONTACT_NOTIFIED',
+      };
+      session.timeline.unshift({
+        id: 'evt_' + Date.now(),
+        time: nowStr,
+        title: 'Check-In Missed — Safety Check Initiated',
+        description: session.alert.reason,
+        actor: 'Escalation Sentinel',
+        type: 'escalation',
+      });
+      logActivity(`⚠️ [SESSION ${session.id}] Check-in missed alert dispatched to Phone B (Rahul).`, 'escalation');
+    } else if (action === 'TRIGGER_SOS') {
+      session.safetyState = 'EMERGENCY';
+      session.alert = {
+        id: 'alt_' + Date.now(),
+        reason: payload?.reason || 'Immediate Emergency SOS triggered by user.',
+        timestamp: nowStr,
+        status: 'PENDING',
+        actor: session.user.name,
+      };
+      currentDemoAlert = {
+        userName: session.user.name,
+        friendName: 'Rahul',
+        reason: session.alert.reason,
+        batteryLevel: session.user.batteryLevel,
+        location: session.user.locationName,
+        timestamp: nowStr,
+        status: 'EMERGENCY_SOS',
+      };
+      session.timeline.unshift({
+        id: 'evt_' + Date.now(),
+        time: nowStr,
+        title: '🚨 Emergency SOS Triggered',
+        description: session.alert.reason,
+        actor: actor || session.user.name,
+        type: 'user',
+      });
+      logActivity(`🚨 [SESSION ${session.id}] EMERGENCY SOS broadcast across all session devices.`, 'system');
+    } else if (action === 'ACKNOWLEDGE_ALERT') {
+      if (session.alert) {
+        session.alert.status = 'ACKNOWLEDGED';
+        session.alert.actor = actor || 'Rahul (Trusted Friend)';
+      }
+      if (currentDemoAlert) {
+        currentDemoAlert.status = 'ACKNOWLEDGED';
+      }
+      session.timeline.unshift({
+        id: 'evt_' + Date.now(),
+        time: nowStr,
+        title: 'Alert Acknowledged by Friend',
+        description: `${actor || 'Rahul'} acknowledged the alert and is monitoring Alex.`,
+        actor: actor || 'Rahul',
+        type: 'contact',
+      });
+      logActivity(`✅ [SESSION ${session.id}] Phone B (${actor || 'Rahul'}) acknowledged the alert.`, 'system');
+    } else if (action === 'RESOLVE') {
+      session.safetyState = 'SAFE';
+      session.alert = null;
+      session.journey.active = false;
+      session.journey.status = 'COMPLETED';
+      currentDemoAlert = null;
+      session.timeline.unshift({
+        id: 'evt_' + Date.now(),
+        time: nowStr,
+        title: 'Event Resolved — User Confirmed Safe',
+        description: 'Safety event closed. All mobile units returned to Standby.',
+        actor: actor || 'Rahul / Alex',
+        type: 'system',
+      });
+      logActivity(`🟢 [SESSION ${session.id}] Safety event marked RESOLVED.`, 'system');
+    } else if (action === 'UPDATE_TELEMETRY') {
+      if (typeof payload?.batteryLevel === 'number') session.user.batteryLevel = payload.batteryLevel;
+      if (payload?.locationName) session.user.locationName = payload.locationName;
+      if (typeof payload?.lat === 'number') session.user.lat = payload.lat;
+      if (typeof payload?.lng === 'number') session.user.lng = payload.lng;
+    } else if (action === 'RESET') {
+      session.safetyState = 'SAFE';
+      session.alert = null;
+      session.journey.active = false;
+      session.journey.status = 'STANDBY';
+      currentDemoAlert = null;
+      session.timeline = [
+        {
+          id: 'evt_' + Date.now(),
+          time: nowStr,
+          title: 'Session Reset',
+          description: 'Demo room restored to initial safe standby state.',
+          actor: 'Presenter',
+          type: 'system',
+        }
+      ];
+      logActivity(`🔄 [SESSION ${session.id}] Reset to default safe state.`, 'system');
+    }
+
+    res.json({ success: true, session });
+  });
+
   app.get('/api/demo/state', (req: Request, res: Response) => {
+    const sId = (req.query.sessionId as string) || 'DEMO-SAFE';
+    const session = getOrCreateSession(sId);
     res.json({
       success: true,
-      alert: currentDemoAlert,
-      safetyState: currentState.safetyState,
+      alert: currentDemoAlert || (session.alert ? {
+        userName: session.user.name,
+        friendName: 'Rahul',
+        reason: session.alert.reason,
+        batteryLevel: session.user.batteryLevel,
+        location: session.user.locationName,
+        timestamp: session.alert.timestamp,
+        status: session.alert.status,
+      } : null),
+      safetyState: session.safetyState,
       serverTime: getNowFormatted()
     });
   });
 
   app.post('/api/demo/alert', (req: Request, res: Response) => {
-    const { userName, friendName, reason, batteryLevel, location, timestamp } = req.body || {};
+    const { userName, friendName, reason, batteryLevel, location, timestamp, sessionId } = req.body || {};
+    const session = getOrCreateSession(sessionId);
     currentDemoAlert = {
-      userName: userName || 'Alex',
+      userName: userName || session.user.name,
       friendName: friendName || 'Rahul',
       reason: reason || 'Check-in missed; safety verification timeout',
-      batteryLevel: typeof batteryLevel === 'number' ? batteryLevel : 67,
-      location: location || 'College Transit Corridor',
+      batteryLevel: typeof batteryLevel === 'number' ? batteryLevel : session.user.batteryLevel,
+      location: location || session.user.locationName,
       timestamp: timestamp || getNowFormatted(),
       status: 'TRUSTED_CONTACT_NOTIFIED'
     };
+    session.safetyState = 'ATTENTION';
+    session.alert = {
+      id: 'alt_' + Date.now(),
+      reason: currentDemoAlert.reason,
+      timestamp: currentDemoAlert.timestamp,
+      status: 'PENDING',
+    };
     currentState.safetyState = 'ATTENTION';
     logActivity(`📱 [DEMO] Safety Alert dispatched to Friend (${friendName || 'Rahul'}): ${reason}`, 'escalation');
-    res.json({ success: true, alert: currentDemoAlert });
+    res.json({ success: true, alert: currentDemoAlert, session });
   });
 
   app.post('/api/demo/acknowledge', (req: Request, res: Response) => {
-    const { actor } = req.body || {};
+    const { actor, sessionId } = req.body || {};
+    const session = getOrCreateSession(sessionId);
     if (currentDemoAlert) {
       currentDemoAlert.status = 'ACKNOWLEDGED';
     }
+    if (session.alert) {
+      session.alert.status = 'ACKNOWLEDGED';
+    }
     logActivity(`✅ [DEMO] Phone B (${actor || 'Rahul'}) acknowledged the safety alert.`, 'system');
-    res.json({ success: true, alert: currentDemoAlert });
+    res.json({ success: true, alert: currentDemoAlert, session });
   });
 
   app.post('/api/demo/resolve', (req: Request, res: Response) => {
+    const { sessionId } = req.body || {};
+    const session = getOrCreateSession(sessionId);
     currentDemoAlert = null;
+    session.alert = null;
+    session.safetyState = 'SAFE';
     currentState.safetyState = 'SAFE';
     logActivity(`🟢 [DEMO] Safety event resolved.`, 'system');
-    res.json({ success: true, message: 'Demo event resolved' });
+    res.json({ success: true, message: 'Demo event resolved', session });
   });
 
   app.post('/api/reset', (req: Request, res: Response) => {
